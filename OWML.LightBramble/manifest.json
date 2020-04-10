@@ -3,7 +3,6 @@
   "author": "Alek",
   "name": "LightBramble",
   "uniqueName": "Alek.LightBramble",
-  "version": "0.2",
-  "owmlVersion": "0.3.9",
-  "enabled": true
+  "version": "0.3",
+  "owmlVersion": "0.3.42"
 }
