@@ -8,7 +8,7 @@ namespace OWML.LightBramble
     public class LightBramble : ModBehaviour
     {
         private AudioSource _dekuSource;
-        private bool _hasBrambleLoaded;
+        private bool _isInGame;
 
         private void Start()
         {
@@ -22,10 +22,17 @@ namespace OWML.LightBramble
             ModHelper.Events.OnEvent += OnEvent;
 
             var audioAsset = ModHelper.Assets.LoadAudio("deku-tree.mp3");
-            audioAsset.OnLoaded += OnLoaded;
+            audioAsset.OnLoaded += OnMusicLoaded;
+
+            LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
         }
 
-        private void OnLoaded(AudioSource dekuSource)
+        private void OnCompleteSceneLoad(OWScene oldScene, OWScene newScene)
+        {
+            _isInGame = newScene == OWScene.SolarSystem;
+        }
+
+        private void OnMusicLoaded(AudioSource dekuSource)
         {
             ModHelper.Logger.Log("Deku Tree music loaded!");
             _dekuSource = dekuSource;
@@ -57,23 +64,19 @@ namespace OWML.LightBramble
             {
                 ModHelper.Logger.Log("Swapping _darkBrambleSource in GlobalMusicController");
                 behaviour.SetValue("_darkBrambleSource", null);
-                _hasBrambleLoaded = true;
             }
         }
 
         private void Update()
         {
-            if (_hasBrambleLoaded)
+            var shouldPlay = _isInGame && Locator.GetPlayerSectorDetector().InBrambleDimension() && !Locator.GetPlayerSectorDetector().InVesselDimension() && PlayerState.AtFlightConsole() && !PlayerState.IsHullBreached();
+            if (shouldPlay && !_dekuSource.isPlaying)
             {
-                var shouldPlay = Locator.GetPlayerSectorDetector().InBrambleDimension() && !Locator.GetPlayerSectorDetector().InVesselDimension() && PlayerState.AtFlightConsole() && !PlayerState.IsHullBreached();
-                if (shouldPlay && !_dekuSource.isPlaying)
-                {
-                    _dekuSource.Play();
-                }
-                else if (!shouldPlay && _dekuSource.isPlaying)
-                {
-                    _dekuSource.Stop();
-                }
+                _dekuSource.Play();
+            }
+            else if (!shouldPlay && _dekuSource.isPlaying)
+            {
+                _dekuSource.Stop();
             }
         }
 
