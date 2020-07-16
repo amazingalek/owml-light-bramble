@@ -40,36 +40,38 @@ namespace OWML.LightBramble
 
         private void OnEvent(MonoBehaviour behaviour, Events ev)
         {
-            if (behaviour.GetType() == typeof(AnglerfishController) && ev == Events.AfterEnable)
+            switch (behaviour)
             {
-                ModHelper.Logger.Log("Deactivating anglerfish");
-                behaviour.gameObject.SetActive(false);
-            }
-            else if (behaviour.GetType().IsSubclassOf(typeof(FogWarpVolume)) && ev == Events.AfterAwake)
-            {
-                ModHelper.Logger.Log("Clearing _fogColor in FogWarpVolume");
-                behaviour.SetValue("_fogColor", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(PlanetaryFogController) && ev == Events.AfterEnable)
-            {
-                ModHelper.Logger.Log("Clearing _fogTint in PlanetaryFogController");
-                behaviour.SetValue("_fogTint", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(FogOverrideVolume) && ev == Events.AfterAwake)
-            {
-                ModHelper.Logger.Log("Clearing _tint in FogOverrideVolume");
-                behaviour.SetValue("_tint", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(GlobalMusicController) && ev == Events.AfterStart)
-            {
-                ModHelper.Logger.Log("Swapping _darkBrambleSource in GlobalMusicController");
-                behaviour.SetValue("_darkBrambleSource", null);
+                case AnglerfishController anglerfishController when ev == Events.AfterEnable:
+                    ModHelper.Logger.Log("Deactivating anglerfish");
+                    anglerfishController.gameObject.SetActive(false);
+                    break;
+                case FogWarpVolume fogWarpVolume when ev == Events.AfterAwake:
+                    ModHelper.Logger.Log("Clearing _fogColor in FogWarpVolume");
+                    fogWarpVolume.SetValue("_fogColor", Color.clear);
+                    break;
+                case PlanetaryFogController planetaryFogController when ev == Events.AfterEnable:
+                    ModHelper.Logger.Log("Clearing _fogTint in PlanetaryFogController");
+                    planetaryFogController.SetValue("_fogTint", Color.clear);
+                    break;
+                case FogOverrideVolume fogOverrideVolume when ev == Events.AfterAwake:
+                    ModHelper.Logger.Log("Clearing _tint in FogOverrideVolume");
+                    fogOverrideVolume.SetValue("_tint", Color.clear);
+                    break;
+                case GlobalMusicController globalMusicController when ev == Events.AfterStart:
+                    ModHelper.Logger.Log("Swapping _darkBrambleSource in GlobalMusicController");
+                    globalMusicController.SetValue("_darkBrambleSource", null);
+                    break;
             }
         }
 
         private void Update()
         {
-            var shouldPlay = _isInGame && Locator.GetPlayerSectorDetector().InBrambleDimension() && !Locator.GetPlayerSectorDetector().InVesselDimension() && PlayerState.AtFlightConsole() && !PlayerState.IsHullBreached();
+            var shouldPlay = _isInGame &&
+                             Locator.GetPlayerSectorDetector().InBrambleDimension() &&
+                             !Locator.GetPlayerSectorDetector().InVesselDimension() &&
+                             PlayerState.AtFlightConsole() &&
+                             !PlayerState.IsHullBreached();
             if (shouldPlay && !_dekuSource.isPlaying)
             {
                 _dekuSource.Play();
