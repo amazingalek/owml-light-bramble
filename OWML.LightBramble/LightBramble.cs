@@ -8,13 +8,19 @@ namespace OWML.LightBramble
     public class LightBramble : ModBehaviour
     {
         private AudioSource _dekuSource;
-        private bool _isInGame;
+        private OWAudioSource _brambleSource;
+        private bool _isInSolarSystem;
+
+        private bool _swapMusic = true;
+        private bool _disableFish = true;
+        private bool _disableFog = true;
 
         private void Start()
         {
-            ModHelper.Logger.Log("In " + nameof(LightBramble));
+            ModHelper.Logger.Log($"Start of {nameof(LightBramble)}");
 
             ModHelper.Events.Subscribe<AnglerfishController>(Events.AfterEnable);
+            ModHelper.Events.Subscribe<FogLight>(Events.AfterStart);
             ModHelper.Events.Subscribe<FogWarpVolume>(Events.AfterAwake);
             ModHelper.Events.Subscribe<PlanetaryFogController>(Events.AfterEnable);
             ModHelper.Events.Subscribe<FogOverrideVolume>(Events.AfterAwake);
@@ -27,9 +33,16 @@ namespace OWML.LightBramble
             LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
         }
 
+        public override void Configure(IModConfig config)
+        {
+            _swapMusic = config.GetSettingsValue<bool>("swapMusic");
+            _disableFish = config.GetSettingsValue<bool>("disableFish");
+            _disableFog = config.GetSettingsValue<bool>("disableFog");
+        }
+
         private void OnCompleteSceneLoad(OWScene oldScene, OWScene newScene)
         {
-            _isInGame = newScene == OWScene.SolarSystem;
+            _isInSolarSystem = newScene == OWScene.SolarSystem;
         }
 
         private void OnMusicLoaded(AudioSource dekuSource)
@@ -40,46 +53,100 @@ namespace OWML.LightBramble
 
         private void OnEvent(MonoBehaviour behaviour, Events ev)
         {
-            if (behaviour.GetType() == typeof(AnglerfishController) && ev == Events.AfterEnable)
+            switch (behaviour)
             {
-                ModHelper.Logger.Log("Deactivating anglerfish");
-                behaviour.gameObject.SetActive(false);
-            }
-            else if (behaviour.GetType().IsSubclassOf(typeof(FogWarpVolume)) && ev == Events.AfterAwake)
-            {
-                ModHelper.Logger.Log("Clearing _fogColor in FogWarpVolume");
-                behaviour.SetValue("_fogColor", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(PlanetaryFogController) && ev == Events.AfterEnable)
-            {
-                ModHelper.Logger.Log("Clearing _fogTint in PlanetaryFogController");
-                behaviour.SetValue("_fogTint", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(FogOverrideVolume) && ev == Events.AfterAwake)
-            {
-                ModHelper.Logger.Log("Clearing _tint in FogOverrideVolume");
-                behaviour.SetValue("_tint", Color.clear);
-            }
-            else if (behaviour.GetType() == typeof(GlobalMusicController) && ev == Events.AfterStart)
-            {
-                ModHelper.Logger.Log("Swapping _darkBrambleSource in GlobalMusicController");
-                behaviour.SetValue("_darkBrambleSource", null);
+                case AnglerfishController anglerfishController
+                    when ev == Events.AfterEnable && _disableFish:
+                    ModHelper.Logger.Log("Deactivating anglerfish");
+                    anglerfishController.gameObject.SetActive(false);
+                    break;
+                case FogLight fogLight
+                    when ev == Events.AfterStart && _disableFish:
+                    ModHelper.Logger.Log("Clearing _tint in FogOverrideVolume");
+                    ModHelper.HarmonyHelper.EmptyMethod<FogLight>("UpdateFogLight");
+                    break;
+                case FogWarpVolume fogWarpVolume
+                    when ev == Events.AfterAwake && _disableFog:
+                    ModHelper.Logger.Log("Clearing _fogColor in FogWarpVolume");
+                    fogWarpVolume.SetValue("_fogColor", Color.clear);
+                    break;
+                case PlanetaryFogController planetaryFogController
+                    when ev == Events.AfterEnable && _disableFog:
+                    ModHelper.Logger.Log("Clearing _fogTint in PlanetaryFogController");
+                    planetaryFogController.SetValue("_fogTint", Color.clear);
+                    break;
+                case FogOverrideVolume fogOverrideVolume
+                    when ev == Events.AfterAwake && _disableFog:
+                    ModHelper.Logger.Log("Clearing _tint in FogOverrideVolume");
+                    fogOverrideVolume.SetValue("_tint", Color.clear);
+                    break;
+                case GlobalMusicController globalMusicController
+                    when ev == Events.AfterStart:
+                    ModHelper.Logger.Log("Swapping _darkBrambleSource in GlobalMusicController");
+                    _brambleSource = behaviour.GetValue<OWAudioSource>("_darkBrambleSource");
+                    ModHelper.HarmonyHelper.EmptyMethod<GlobalMusicController>("UpdateBrambleMusic");
+                    break;
             }
         }
 
         private void Update()
         {
-            var shouldPlay = _isInGame && Locator.GetPlayerSectorDetector().InBrambleDimension() && !Locator.GetPlayerSectorDetector().InVesselDimension() && PlayerState.AtFlightConsole() && !PlayerState.IsHullBreached();
-            if (shouldPlay && !_dekuSource.isPlaying)
+            var isInBramble = _isInSolarSystem &&
+                              Locator.GetPlayerSectorDetector().InBrambleDimension() &&
+                              !Locator.GetPlayerSectorDetector().InVesselDimension() &&
+                              PlayerState.AtFlightConsole() &&
+                              !PlayerState.IsHullBreached();
+            if (isInBramble)
+            {
+                if (_swapMusic)
+                {
+                    PlayDekuMusic();
+                    StopBrambleMusic();
+                }
+                else
+                {
+                    PlayBrambleMusic();
+                    StopDekuMusic();
+                }
+            }
+            else
+            {
+                StopDekuMusic();
+                StopBrambleMusic();
+            }
+        }
+
+        private void PlayDekuMusic()
+        {
+            if (_dekuSource != null && !_dekuSource.isPlaying)
             {
                 _dekuSource.Play();
             }
-            else if (!shouldPlay && _dekuSource.isPlaying)
+        }
+
+        private void PlayBrambleMusic()
+        {
+            if (_brambleSource != null && !_brambleSource.isPlaying)
+            {
+                _brambleSource.Play();
+            }
+        }
+
+        private void StopDekuMusic()
+        {
+            if (_dekuSource != null && _dekuSource.isPlaying)
             {
                 _dekuSource.Stop();
             }
         }
 
-    }
+        private void StopBrambleMusic()
+        {
+            if (_brambleSource != null && _brambleSource.isPlaying)
+            {
+                _brambleSource.Stop();
+            }
+        }
 
+    }
 }
