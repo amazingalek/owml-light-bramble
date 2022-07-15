@@ -1,9 +1,0 @@
-{
-  "enabled": true,
-  "requireVR": false,
-  "settings": {
-    "swapMusic": true,
-    "disableFish": true,
-    "disableFog": true
-  }
-}
