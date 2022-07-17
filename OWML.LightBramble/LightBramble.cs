@@ -34,6 +34,7 @@ namespace OWML.LightBramble
 		public bool _disableFog = true;
 		 
 		MethodInfo anglerChangeState;
+		MethodInfo onSectorOccupantsUpdated;
 
 		public static LightBramble inst;
 
@@ -59,6 +60,8 @@ namespace OWML.LightBramble
 			ModHelper.HarmonyHelper.AddPostfix<FogLight>(nameof(FogLight.Awake), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
 			ModHelper.HarmonyHelper.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
 
+			ModHelper.HarmonyHelper.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 
@@ -69,7 +72,8 @@ namespace OWML.LightBramble
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
 			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);
-
+			onSectorOccupantsUpdated = anglerType.GetMethod("OnSectorOccupantsUpdated", BindingFlags.NonPublic | BindingFlags.Instance);
+			
 #if DEBUG
 			GlobalMessenger.AddListener("SuitUp", new Callback(OnSuitUp));
 #endif
@@ -287,21 +291,22 @@ namespace OWML.LightBramble
 		{
 			if (!isInSolarSystem || anglerfishController == null)
 				return;
-
+			
 			if (disabled && anglerfishController.gameObject.activeSelf)
 			{
 				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
 				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
 				
-				anglerfishController.GetAttachedOWRigidbody()?.Suspend();
+				//anglerfishController.OnAnglerSuspended += (anglerState) => DebugLog("angler suspended event called");
+				anglerfishController.GetAttachedOWRigidbody().Suspend();
 				anglerfishController.gameObject.SetActive(false);
+				anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
 			}
 			else if (!disabled && !anglerfishController.gameObject.activeSelf)
 			{
 				anglerfishController.gameObject.SetActive(true);
-				
-				anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
-				
+				anglerfishController.GetAttachedOWRigidbody().Unsuspend();
+				anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
 			}
 			DebugLog("toggled a fish");
 		}
@@ -360,14 +365,14 @@ namespace OWML.LightBramble
 			}
 		}
 
-		private void DebugLog(string str)
+		public void DebugLog(string str)
 		{
 #if DEBUG
 			ModHelper.Console.WriteLine(str);
 #endif
 		}
 
-		private void Log(string str, MessageType messageType)
+		private void DebugLog(string str, MessageType messageType)
 		{
 #if DEBUG
 			ModHelper.Console.WriteLine(str, messageType);

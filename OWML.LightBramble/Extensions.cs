@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace OWML.LightBramble
@@ -77,6 +78,26 @@ namespace OWML.LightBramble
 				return true;
 			}
 			return false;
+		}
+
+		public static void RaiseEvent(this object instance, string eventName, params object[] eventParams)
+		{
+			LightBramble.inst.DebugLog("Raising event");
+			var type = instance.GetType();
+			var eventField = type.GetField(eventName, BindingFlags.Instance | BindingFlags.NonPublic);
+			if (eventField == null)
+				LightBramble.inst.DebugLog($"Event with name {eventName} could not be found.");
+			var multicastDelegate = eventField.GetValue(instance) as MulticastDelegate;
+			if (multicastDelegate == null)
+			{
+				LightBramble.inst.DebugLog("multicastDelegate is null");
+				return;
+			}
+
+			var invocationList = multicastDelegate.GetInvocationList();
+
+			foreach (var invocationMethod in invocationList)
+				invocationMethod.DynamicInvoke(eventParams);
 		}
 	}
 }
