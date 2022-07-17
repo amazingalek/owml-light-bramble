@@ -8,14 +8,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System;
+using System.Collections;
 
 namespace OWML.LightBramble
 {
 	public class LightBramble : ModBehaviour
 	{
+		public GlobalMusicController globalMusicController;
 		public AudioSource _dekuSource;
 		public OWAudioSource _brambleSource;
-		public OWAudioSource dekuAudioSource;
+		public OWAudioSource dekuOWAudioSource;
 
 		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
 		public List<FogLightData> fogLightDataList = new List<FogLightData>();
@@ -50,7 +52,7 @@ namespace OWML.LightBramble
 
 			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
 			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
-			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPostfix));
+			ModHelper.HarmonyHelper.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));
 			ModHelper.HarmonyHelper.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
 			ModHelper.HarmonyHelper.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
 			ModHelper.HarmonyHelper.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
@@ -61,7 +63,8 @@ namespace OWML.LightBramble
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 
 			LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
-			//LoadManager.OnStartSceneLoad += OnStartSceneLoad;
+			GlobalMessenger.AddListener("WakeUp", SetupAudio);
+			GlobalMessenger.AddListener("WakeUp", TPToShip);
 
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
@@ -70,20 +73,6 @@ namespace OWML.LightBramble
 #if DEBUG
 			GlobalMessenger.AddListener("SuitUp", new Callback(OnSuitUp));
 #endif
-		}
-
-		private void PrintPlayerPosition()
-		{
-			if (!isInSolarSystem)
-				return;
-
-			ModHelper.Console.WriteLine("Ship rb position: " + Locator.GetShipBody().GetAttachedOWRigidbody().GetPosition());
-
-			var bramblePb = Locator.GetAstroObject(AstroObject.Name.DarkBramble).GetPrimaryBody();
-			ModHelper.Console.WriteLine("bramblepb = " + bramblePb.GetAstroObjectName());
-			ModHelper.Console.WriteLine("Bramble position pb: " + bramblePb.GetAttachedOWRigidbody().GetPosition());
-			ModHelper.Console.WriteLine("Bramble position: " + Locator.GetAstroObject(AstroObject.Name.DarkBramble).GetAttachedOWRigidbody().GetPosition());
-
 		}
 
 		public override void Configure(IModConfig config)
@@ -102,8 +91,13 @@ namespace OWML.LightBramble
 
 		private void PlayerExitBramble()
 		{
+			DebugLog("Player exited bramble");
 			isInBramble = false;
 			EnableFog();
+			if (_brambleSource != null && _brambleSource.isPlaying)
+				_brambleSource.FadeOut(3f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+			else if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
+				dekuOWAudioSource.FadeOut(3f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
 		}
 
 		private void OnCompleteSceneLoad(OWScene oldScene, OWScene newScene)
@@ -114,27 +108,27 @@ namespace OWML.LightBramble
 				AstroObject darkbramble = Locator.GetAstroObject(AstroObject.Name.DarkBramble);
 				if (darkbramble == null)
 				{
-					ModHelper.Console.WriteLine("darkBramble null, wtf>>!", MessageType.Error);
+					ModHelper.Console.WriteLine("darkBramble null!", MessageType.Error);
 					return;
 				}
 
-				ModHelper.Console.WriteLine("before pfc = " + planetaryFogControllerDict.Count);
+				DebugLog("before pfc = " + planetaryFogControllerDict.Count);
 
 				//filter to fog that is inside Dark Bramble
 				//planetaryFogControllerDict = planetaryFogControllerDict.Where(kvp => darkbramble.IsInsideSphere(kvp.Key.transform.position, kvp.Key.fogRadius + 3000)).ToDictionary(i => i.Key, i => i.Value);
 				//planetaryFogControllerDict = planetaryFogControllerDict.Where(kvp => kvp.Key.IsInsideSphere(darkbramble.GetPrimaryBody().GetAttachedOWRigidbody().GetPosition(), 3000)).ToDictionary(i => i.Key, i => i.Value);
 
-				ModHelper.Console.WriteLine("after pfc = " + planetaryFogControllerDict.Count);
+				DebugLog("after pfc = " + planetaryFogControllerDict.Count);
 
 
-				ModHelper.Console.WriteLine("before foglight= " + fogLightDataList.Count);
+				DebugLog("before foglight= " + fogLightDataList.Count);
 
 				fogLightDataList.RemoveAll(fogLightData => !(fogLightData.fogLight.IsInBrambleSector()));
 
-				ModHelper.Console.WriteLine("after foglight = " + fogLightDataList.Count);
+				DebugLog("after foglight = " + fogLightDataList.Count);
 
 
-				ModHelper.Console.WriteLine("before fogoverridevolume= " + fogOverrideVolumeDict.Count);
+				DebugLog("before fogoverridevolume= " + fogOverrideVolumeDict.Count);
 				#region my failed attempts to filter FogOverrideVolume
 				//fogOverrideVolumeDict = fogOverrideVolumeDict.Where(kvp => kvp.Key.IsInBrambleSector()).ToDictionary(i => i.Key, i => i.Value);
 				//fogOverrideVolumeDict = fogOverrideVolumeDict.Where(kvp => kvp.Key.IsInsideSphere(darkbramble.gameObject.transform.position, 60000)).ToDictionary(i => i.Key, i => i.Value);
@@ -160,26 +154,31 @@ namespace OWML.LightBramble
 				// where collider.bounds.Contains(kvp.Key.transform.position)
 				// select kvp).ToDictionary(i => i.Key, i => i.Value);
 				#endregion
-				ModHelper.Console.WriteLine("after fogoverridevolume= " + fogOverrideVolumeDict.Count);
+				DebugLog("after fogoverridevolume= " + fogOverrideVolumeDict.Count);
 
 
-				ModHelper.Console.WriteLine("before fogWarpVolumeDict= " + fogWarpVolumeDict.Count);
+				DebugLog("before fogWarpVolumeDict= " + fogWarpVolumeDict.Count);
 
 				fogWarpVolumeDict = fogWarpVolumeDict.Where(kvp => kvp.Key.IsInBrambleSector()).ToDictionary(i => i.Key, i => i.Value);
 
-				ModHelper.Console.WriteLine("after fogWarpVolumeDict= " + fogWarpVolumeDict.Count);
+				DebugLog("after fogWarpVolumeDict= " + fogWarpVolumeDict.Count);
 
-				CheckToggleables();
-
-#if DEBUG
-				Invoke(nameof(TPToShip), 3);
-				InvokeRepeating(nameof(PrintPlayerPosition), 4, 2);
-#endif
+				//CheckToggleables();
+				//SetupAudio();
 			}
 			else
 			{
 				isInBramble = false;
+				if (_brambleSource != null && _brambleSource.isPlaying)
+					_brambleSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+				else if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
+					dekuOWAudioSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
 			}
+		}
+
+		private void StopDekuMusic()
+		{
+			dekuOWAudioSource.Stop();
 		}
 
 		private void TPToShip()
@@ -193,6 +192,22 @@ namespace OWML.LightBramble
 			WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0));
 		}
 
+		private void PrintShipPosition()
+		{
+			if (!isInSolarSystem)
+				return;
+
+			ModHelper.Console.WriteLine("Ship rb position: " + (Locator.GetShipBody()?.GetAttachedOWRigidbody()?.GetPosition().ToString() ?? "loading"));
+
+			var bramble = Locator.GetAstroObject(AstroObject.Name.DarkBramble);
+			if (bramble == null) { return; }
+
+			var bramblePb = bramble.GetPrimaryBody();
+			ModHelper.Console.WriteLine("bramblepb = " + bramblePb.GetAstroObjectName());
+			ModHelper.Console.WriteLine("Bramble position pb: " + bramblePb.GetAttachedOWRigidbody().GetPosition());
+			ModHelper.Console.WriteLine("Bramble position: " + bramble.GetAttachedOWRigidbody().GetPosition());
+		}
+
 		/// <summary>
 		/// Warps to an AstroObject at a specified offset and matches the ship's velocity to that of the AstroObject
 		/// </summary>
@@ -203,17 +218,47 @@ namespace OWML.LightBramble
 			Locator.GetShipBody().SetVelocity(astroObject.GetPrimaryBody().GetOWRigidbody().GetVelocity());
 		}
 
+		private void SetupAudio()
+		{
+			DebugLog("SetupAudio called");
+			_dekuSource = gameObject.AddComponent<AudioSource>();
+			_dekuSource.clip = ModHelper.Assets.GetAudio("deku-tree.mp3");
+			dekuOWAudioSource = gameObject.AddComponent<OWAudioSource>();
+			dekuOWAudioSource.SetValue("_audioSource", _dekuSource);
+
+			//I don't know why this delay is necessary, but it is
+			Invoke(nameof(StopDekuMusic), 0.5f);
+		}
+
+		//private IEnumerator StopDekuMusicCor()
+		//{
+		//	while (_dekuSource.isPlaying)
+		//	{
+		//		DebugLog("trying to stop deku music");
+		//		_dekuSource.Stop();
+		//		yield return new WaitForSeconds(1);
+		//	}
+		//	StopCoroutine(nameof(StopDekuMusicCor));
+		//}
+
 		private void CheckToggleables()
 		{
 			if (isInSolarSystem && isInBramble)
 			{
+				DebugLog("in solar system and bramble checktoggleables");
 				if (_swapMusic)
 				{
-					//PlayDekuMusic();
+					if (_brambleSource != null && _brambleSource.isPlaying)
+						_brambleSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+					if (dekuOWAudioSource != null && !dekuOWAudioSource.isPlaying)
+						dekuOWAudioSource.FadeIn(1f, false, false, 1f);
 				}
 				else
 				{
-					//PlayBrambleMusic();
+					if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
+						dekuOWAudioSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+					if (_brambleSource != null && !_brambleSource.isPlaying)
+						_brambleSource.FadeIn(1f, false, false, 1f);
 				}
 
 				if (_disableFog)
@@ -224,13 +269,14 @@ namespace OWML.LightBramble
 				{
 					EnableFog();
 				}
+
 				ToggleFishes(_disableFish);
 			}
 		}
 
 		private void ToggleFishes(bool disabled)
 		{
-			ModHelper.Console.WriteLine("Disabling multiple fish? : " + disabled.ToString());
+			DebugLog("Disabling multiple fish? : " + disabled.ToString());
 			foreach (AnglerfishController anglerfishController in anglerfishList)
 			{
 				ToggleFish(anglerfishController, disabled);
@@ -239,28 +285,30 @@ namespace OWML.LightBramble
 
 		public void ToggleFish(AnglerfishController anglerfishController, bool disabled)
 		{
-			if (!isInSolarSystem)
+			if (!isInSolarSystem || anglerfishController == null)
 				return;
 
-			if (disabled)
+			if (disabled && anglerfishController.gameObject.activeSelf)
 			{
 				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
-				anglerChangeState.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
-				//anglerfishController.GetAttachedOWRigidbody().SetVelocity(Locator.GetAstroObject(AstroObject.Name.DarkBramble).GetPrimaryBody().GetAttachedOWRigidbody().GetVelocity());
-				anglerfishController.GetAttachedOWRigidbody().Suspend();
+				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
+				
+				anglerfishController.GetAttachedOWRigidbody()?.Suspend();
 				anglerfishController.gameObject.SetActive(false);
 			}
-			else
+			else if (!disabled && !anglerfishController.gameObject.activeSelf)
 			{
 				anglerfishController.gameObject.SetActive(true);
-				anglerfishController.GetAttachedOWRigidbody().Unsuspend();
+				
+				anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
+				
 			}
-			ModHelper.Console.WriteLine("toggled a fish");
+			DebugLog("toggled a fish");
 		}
 
 		private void EnableFog()
 		{
-			ModHelper.Console.WriteLine("Enabling Fog");
+			DebugLog("Enabling Fog");
 			foreach (FogLightData fogLightData in fogLightDataList)
 			{
 				fogLightData.alpha = fogLightData.originalAlpha;
@@ -293,7 +341,7 @@ namespace OWML.LightBramble
 
 		private void DisableFog()
 		{
-			ModHelper.Console.WriteLine("Disabling Fog");
+			DebugLog("Disabling Fog");
 			foreach (FogLightData fogLightData in fogLightDataList)
 			{
 				fogLightData.alpha = 0f;
@@ -305,12 +353,25 @@ namespace OWML.LightBramble
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = Color.clear;
-				ModHelper.Console.WriteLine("disabling fog pfogcontroller tint = " + kvp.Key.fogTint);
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = Color.clear;
 			}
+		}
+
+		private void DebugLog(string str)
+		{
+#if DEBUG
+			ModHelper.Console.WriteLine(str);
+#endif
+		}
+
+		private void Log(string str, MessageType messageType)
+		{
+#if DEBUG
+			ModHelper.Console.WriteLine(str, messageType);
+#endif
 		}
 	}
 }
