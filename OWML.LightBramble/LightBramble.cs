@@ -34,7 +34,6 @@ namespace OWML.LightBramble
 		public bool _disableFog = true;
 		 
 		MethodInfo anglerChangeState;
-		MethodInfo onSectorOccupantsUpdated;
 
 		public static LightBramble inst;
 
@@ -67,14 +66,13 @@ namespace OWML.LightBramble
 
 			LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
 			GlobalMessenger.AddListener("WakeUp", SetupAudio);
-			GlobalMessenger.AddListener("WakeUp", TPToShip);
 
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
-			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);
-			onSectorOccupantsUpdated = anglerType.GetMethod("OnSectorOccupantsUpdated", BindingFlags.NonPublic | BindingFlags.Instance);
-			
+			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);			
+
 #if DEBUG
+			GlobalMessenger.AddListener("WakeUp", TPToShip);
 			GlobalMessenger.AddListener("SuitUp", new Callback(OnSuitUp));
 #endif
 		}
@@ -234,17 +232,6 @@ namespace OWML.LightBramble
 			Invoke(nameof(StopDekuMusic), 0.5f);
 		}
 
-		//private IEnumerator StopDekuMusicCor()
-		//{
-		//	while (_dekuSource.isPlaying)
-		//	{
-		//		DebugLog("trying to stop deku music");
-		//		_dekuSource.Stop();
-		//		yield return new WaitForSeconds(1);
-		//	}
-		//	StopCoroutine(nameof(StopDekuMusicCor));
-		//}
-
 		private void CheckToggleables()
 		{
 			if (isInSolarSystem && isInBramble)
@@ -317,30 +304,21 @@ namespace OWML.LightBramble
 			foreach (FogLightData fogLightData in fogLightDataList)
 			{
 				fogLightData.alpha = fogLightData.originalAlpha;
-
-				//ModHelper.Console.WriteLine($"Enabling FogLight");
 			}
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", kvp.Value);
-
-				var fogSector = kvp.Key.GetValue<Sector>("_sector");
-				if (fogSector == null) { }
-				//else { ModHelper.Console.WriteLine($"FogWarpVolume is in {fogSector.ToString()}"); }
+				//var fogSector = kvp.Key.GetValue<Sector>("_sector"); if (fogSector != null) { ModHelper.Console.WriteLine($"FogWarpVolume is in {fogSector.ToString()}"); }
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = kvp.Value;
-
 				//ModHelper.Console.WriteLine($"PlanetaryFogController named {kvp.Key.gameObject.name}");
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = kvp.Value;
-
-				var fogSector = kvp.Key.GetValue<Sector>("_sector");
-				if (fogSector == null) { }
-				//else { ModHelper.Console.WriteLine($"FogOverrideVolume is in {fogSector.ToString()}"); }
+				//var fogSector = kvp.Key.GetValue<Sector>("_sector"); if (fogSector != null) { ModHelper.Console.WriteLine($"FogOverrideVolume is in {fogSector.ToString()}"); }
 			}
 		}
 
