@@ -5,9 +5,22 @@ namespace OWML.LightBramble
 {
 	public class AnglerPatch
 	{
-		static public void SectorUpdated(AnglerfishController __instance)
+		static public void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
 		{
-			LightBramble.inst.ToggleFish(__instance, LightBramble.inst._disableFish);
+			__runOriginal = false;
+
+			if (!LightBramble.inst._disableFish && !__instance.gameObject.activeSelf && __instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			{
+				__instance.gameObject.SetActive(true);
+				__instance.GetAttachedOWRigidbody().Unsuspend(true);
+				__instance.RaiseEvent("OnAnglerUnsuspended", __instance.GetAnglerState());
+			}
+			else if (__instance.gameObject.activeSelf && !__instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			{
+				__instance.GetAttachedOWRigidbody().Suspend();
+				__instance.gameObject.SetActive(false);
+				__instance.RaiseEvent("OnAnglerSuspended", __instance.GetAnglerState());
+			}
 		}
 		static public void AwakePostfix(AnglerfishController __instance)
 		{

@@ -50,7 +50,7 @@ namespace OWML.LightBramble
 		{			
 			ModHelper.Console.WriteLine($"Start of {nameof(LightBramble)}");
 
-			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
+			ModHelper.HarmonyHelper.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
 			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
 			ModHelper.HarmonyHelper.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));
 			ModHelper.HarmonyHelper.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
@@ -164,9 +164,6 @@ namespace OWML.LightBramble
 				fogWarpVolumeDict = fogWarpVolumeDict.Where(kvp => kvp.Key.IsInBrambleSector()).ToDictionary(i => i.Key, i => i.Value);
 
 				DebugLog("after fogWarpVolumeDict= " + fogWarpVolumeDict.Count);
-
-				//CheckToggleables();
-				//SetupAudio();
 			}
 			else
 			{
@@ -176,11 +173,6 @@ namespace OWML.LightBramble
 				else if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
 					dekuOWAudioSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
 			}
-		}
-
-		private void StopDekuMusic()
-		{
-			dekuOWAudioSource.Stop();
 		}
 
 		private void TPToShip()
@@ -232,6 +224,11 @@ namespace OWML.LightBramble
 			Invoke(nameof(StopDekuMusic), 0.5f);
 		}
 
+		private void StopDekuMusic()
+		{
+			dekuOWAudioSource.Stop();
+		}
+
 		private void CheckToggleables()
 		{
 			if (isInSolarSystem && isInBramble)
@@ -278,22 +275,27 @@ namespace OWML.LightBramble
 		{
 			if (!isInSolarSystem || anglerfishController == null)
 				return;
-			
-			if (disabled && anglerfishController.gameObject.activeSelf)
+
+			if (disabled && anglerfishController.gameObject.activeSelf && anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
 			{
 				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
 				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
-				
+
 				//anglerfishController.OnAnglerSuspended += (anglerState) => DebugLog("angler suspended event called");
-				anglerfishController.GetAttachedOWRigidbody().Suspend();
+				anglerfishController.GetAttachedOWRigidbody()?.Suspend();
 				anglerfishController.gameObject.SetActive(false);
 				anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
 			}
-			else if (!disabled && !anglerfishController.gameObject.activeSelf)
+			else if (!disabled && !anglerfishController.gameObject.activeSelf && anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
 			{
 				anglerfishController.gameObject.SetActive(true);
-				anglerfishController.GetAttachedOWRigidbody().Unsuspend();
+				anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
 				anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
+			}
+			else
+			{
+				DebugLog("did not toggle fish");
+				return;
 			}
 			DebugLog("toggled a fish");
 		}
