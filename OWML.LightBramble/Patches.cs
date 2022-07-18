@@ -83,29 +83,21 @@ namespace OWML.LightBramble
 			LightBramble.inst.DebugLog(anglerState.ToString());
 
 			OWAudioSource _loopSource = __instance.GetValue<OWAudioSource>("_loopSource");
-			if (_loopSource != null)
+			//LightBramble.inst.DebugLog("audioManager is " + (audioManager?.ToString() ?? "null"));
+			if (Locator.GetAudioManager() is AudioManager audioManager && audioManager != null)
 			{
-				LightBramble.inst.DebugLog("loopsource not null");
-				var audioManager = Locator.GetAudioManager();
-				LightBramble.inst.DebugLog("audioManager is " + (audioManager?.ToString() ?? "null"));
-				if (audioManager != null)
+				switch (anglerState)
 				{
-					var audioClipArray = audioManager.GetAudioClipArray(global::AudioType.DBAnglerfishLurking_LP);
-					LightBramble.inst.DebugLog("audio clip array is " + audioClipArray);
-					switch (anglerState)
-					{
-						case AnglerfishController.AnglerState.Lurking:
-							_loopSource.AssignAudioLibraryClip(global::AudioType.DBAnglerfishLurking_LP);
-							_loopSource.FadeIn(0.5f, true, false, 1f);
-							return;
-						case AnglerfishController.AnglerState.Chasing:
-							_loopSource.AssignAudioLibraryClip(global::AudioType.DBAnglerfishChasing_LP);
-							_loopSource.FadeIn(0.5f, true, false, 1f);
-							return;
-					}
-					_loopSource.FadeOut(0.5f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+					case AnglerfishController.AnglerState.Lurking:
+						_loopSource.AssignAudioLibraryClip(global::AudioType.DBAnglerfishLurking_LP);
+						_loopSource.FadeIn(0.5f, true, false, 1f);
+						return;
+					case AnglerfishController.AnglerState.Chasing:
+						_loopSource.AssignAudioLibraryClip(global::AudioType.DBAnglerfishChasing_LP);
+						_loopSource.FadeIn(0.5f, true, false, 1f);
+						return;
 				}
-
+				_loopSource.FadeOut(0.5f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
 			}
 		}
 	}
