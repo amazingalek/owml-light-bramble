@@ -1,20 +1,18 @@
-﻿#define DEBUG
-
+﻿
 using OWML.Common;
 using OWML.ModHelper;
 using OWML.Utils;
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System;
-using System.Collections;
 using System.Threading.Tasks;
 
 namespace OWML.LightBramble
 {
 	public class LightBramble : ModBehaviour
 	{
+		public GameObject musicManager;
 		public GlobalMusicController globalMusicController;
 		public AudioSource _dekuSource;
 		public OWAudioSource _brambleSource;
@@ -68,7 +66,7 @@ namespace OWML.LightBramble
 
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
-			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);			
+			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);
 		}
 
 		public override void Configure(IModConfig config)
@@ -114,15 +112,11 @@ namespace OWML.LightBramble
 		{
 			SetupAudio();
 #if DEBUG
-			TPToShip();
-			Task.Delay(1000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
-#endif
-		}
-
-		private void TPToShip()
-		{
+			//warp player to ship, then ship to Bramble
 			var shipBody = Locator.GetShipBody();
 			Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation());
+			Task.Delay(1000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+#endif
 		}
 
 		/// <summary>
@@ -137,19 +131,22 @@ namespace OWML.LightBramble
 
 		private void SetupAudio()
 		{
+			//load audio, add it to an AudioSource component, then set up an OWAudioSource on musicManager
 			DebugLog("SetupAudio called");
-			_dekuSource = gameObject.AddComponent<AudioSource>();
+			if (musicManager != null)
+				Destroy(musicManager);
+			musicManager = new GameObject();
+			musicManager.SetActive(false);
+			_dekuSource = musicManager.AddComponent<AudioSource>();
 			_dekuSource.clip = ModHelper.Assets.GetAudio("deku-tree.mp3");
-			dekuOWAudioSource = gameObject.AddComponent<OWAudioSource>();
+
+			dekuOWAudioSource = musicManager.AddComponent<OWAudioSource>();
 			dekuOWAudioSource.SetValue("_audioSource", _dekuSource);
+			dekuOWAudioSource.SetTrack(OWAudioMixer.TrackName.Music);
+			musicManager.SetActive(true);
 
 			//I don't know why this delay is necessary, but it is
-			Invoke(nameof(StopDekuMusic), 0.5f);
-		}
-
-		private void StopDekuMusic()
-		{
-			dekuOWAudioSource.Stop();
+			Task.Delay(500).ContinueWith(t => dekuOWAudioSource.Stop());
 		}
 
 		private void CheckToggleables()
@@ -196,10 +193,10 @@ namespace OWML.LightBramble
 
 		public void ToggleFish(AnglerfishController anglerfishController, bool disabled)
 		{
-			if (!isInSolarSystem || anglerfishController == null)
+			if (!isInSolarSystem || anglerfishController == null || !(anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship)))
 				return;
 
-			if (disabled && anglerfishController.gameObject.activeSelf && anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			if (disabled && anglerfishController.gameObject.activeSelf)
 			{
 				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
 				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
@@ -209,16 +206,11 @@ namespace OWML.LightBramble
 				anglerfishController.gameObject.SetActive(false);
 				anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
 			}
-			else if (!disabled && !anglerfishController.gameObject.activeSelf && anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			else if (!disabled && !anglerfishController.gameObject.activeSelf)
 			{
 				anglerfishController.gameObject.SetActive(true);
 				anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
 				anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
-			}
-			else
-			{
-				DebugLog("did not toggle fish");
-				return;
 			}
 			DebugLog("toggled a fish");
 		}
@@ -233,17 +225,14 @@ namespace OWML.LightBramble
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", kvp.Value);
-				//var fogSector = kvp.Key.GetValue<Sector>("_sector"); if (fogSector != null) { ModHelper.Console.WriteLine($"FogWarpVolume is in {fogSector.ToString()}"); }
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = kvp.Value;
-				//ModHelper.Console.WriteLine($"PlanetaryFogController named {kvp.Key.gameObject.name}");
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = kvp.Value;
-				//var fogSector = kvp.Key.GetValue<Sector>("_sector"); if (fogSector != null) { ModHelper.Console.WriteLine($"FogOverrideVolume is in {fogSector.ToString()}"); }
 			}
 		}
 

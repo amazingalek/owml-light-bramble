@@ -63,15 +63,6 @@ namespace OWML.LightBramble
 			LightBramble.inst.globalMusicController = __instance;
 			LightBramble.inst._brambleSource = __instance.GetValue<OWAudioSource>("_darkBrambleSource");
 			LightBramble.inst.ModHelper.HarmonyHelper.EmptyMethod<GlobalMusicController>(nameof(GlobalMusicController.UpdateBrambleMusic));
-
-			//LightBramble.inst._dekuSource = __instance.gameObject.AddComponent<AudioSource>();
-			//LightBramble.inst._dekuSource.clip = LightBramble.inst.ModHelper.Assets.GetAudio("deku-tree.mp3");
-			//LightBramble.inst.dekuOWAudioSource = __instance.gameObject.AddComponent<OWAudioSource>();
-			//LightBramble.inst.dekuOWAudioSource.time = 0;
-			//LightBramble.inst.dekuOWAudioSource.SetValue("_audioSource", LightBramble.inst._dekuSource);
-
-			//LightBramble.inst._brambleSource.Stop();
-			//__instance.SetValue("_darkBrambleSource", LightBramble.inst.dekuOWAudioSource);
 		}
 	}
 
