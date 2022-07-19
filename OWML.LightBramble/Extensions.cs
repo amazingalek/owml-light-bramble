@@ -7,7 +7,7 @@ namespace OWML.LightBramble
 	{
 		public static void RaiseEvent(this object instance, string eventName, params object[] eventParams)
 		{
-			LightBramble.inst.DebugLog("Raising event");
+			//LightBramble.inst.DebugLog("Raising event");
 			var type = instance.GetType();
 			var eventField = type.GetField(eventName, BindingFlags.Instance | BindingFlags.NonPublic);
 			if (eventField == null)

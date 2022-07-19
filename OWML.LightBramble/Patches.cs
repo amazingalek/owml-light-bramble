@@ -1,4 +1,5 @@
 ﻿using OWML.Utils;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace OWML.LightBramble
@@ -25,6 +26,7 @@ namespace OWML.LightBramble
 		static public void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.anglerfishList.Add(__instance);
+			__instance.OnAnglerSuspended += (anglerState) => LightBramble.inst.DebugLog("angler suspended event called");
 		}
 		static public void OnDestroyPrefix(AnglerfishController __instance)
 		{
@@ -46,8 +48,17 @@ namespace OWML.LightBramble
 
 		static public void FogLightPostfix(FogLight __instance)
 		{
-			FogLightData fogLightData = new FogLightData(__instance);
-			LightBramble.inst.fogLightDataList.Add(fogLightData);
+			List<FogLight> linkedFogLights = __instance.GetValue<List<FogLight>>("_linkedFogLights");
+			List<FogLight.LightData> linkedLightData = __instance.GetValue<List<FogLight.LightData>>("_linkedLightData");
+			for (int i = 0; i < linkedFogLights.Count; i++)
+			{
+				if (linkedFogLights[i].gameObject.name == "Lure_FogLight")
+				{
+					//linkedLightData[i].maxAlpha = 0f;
+					LightBramble.inst.lureLightDataList.Add(linkedLightData[i]);
+					LightBramble.inst.DebugLog("adding lure foglight, maxAlpha is " + linkedLightData[i].maxAlpha);
+				}
+			}
 		}
 
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
