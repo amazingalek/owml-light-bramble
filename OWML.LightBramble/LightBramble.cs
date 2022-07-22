@@ -18,6 +18,7 @@ namespace OWML.LightBramble
 		public AudioSource _dekuSource;
 		public OWAudioSource _brambleSource;
 		public OWAudioSource dekuOWAudioSource;
+		public OWAudioSource currentAudioSource { private set; get; }
 
 		public List<FogLight.LightData> lureLightDataList = new List<FogLight.LightData>();
 		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
@@ -25,15 +26,15 @@ namespace OWML.LightBramble
 		public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 		public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
 
-		public bool isInSolarSystem { get; private set; } = false;   //updated on every scene load
+		private bool isInSolarSystem = false;   //updated on every scene load
 		private bool isInBramble = false;   //updated by a global event called by the game
 
 		//Config toggles, automatically modified from Configure when the user toggles them in the OWML menu
-		private bool _swapMusic = true;
+		public bool _swapMusic = true;
 		public bool _disableFish = true;
 		public bool _disableFog = true;
 		 
-		MethodInfo anglerChangeState;
+		private MethodInfo anglerChangeState;
 
 		public static LightBramble inst;
 
@@ -48,17 +49,7 @@ namespace OWML.LightBramble
 
 		private void Start()
 		{
-			ModHelper.Console.WriteLine($"Start of {nameof(LightBramble)}");
-
-			ModHelper.HarmonyHelper.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
-			ModHelper.HarmonyHelper.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
-			ModHelper.HarmonyHelper.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));
-			ModHelper.HarmonyHelper.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
-			ModHelper.HarmonyHelper.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
-			ModHelper.HarmonyHelper.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
-			ModHelper.HarmonyHelper.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
-			ModHelper.HarmonyHelper.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
-			ModHelper.HarmonyHelper.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+			Patches.SetupPatches();
 
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
@@ -101,11 +92,23 @@ namespace OWML.LightBramble
 			}
 			if (_swapMusic)
 			{
-				if (_brambleSource != null && _brambleSource.isPlaying)
-					_brambleSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-				if (dekuOWAudioSource != null && !dekuOWAudioSource.isPlaying)
-					dekuOWAudioSource.FadeIn(1f, false, false, 1f);
+				SetBrambleAudioSource(dekuOWAudioSource, 1f, 0f);
 			}
+			else
+				SetBrambleAudioSource(_brambleSource, 1f, 0f);
+		}
+
+		private void SetBrambleAudioSource(OWAudioSource audioSource, float fadeInDuration, float fadeOutDuration)
+		{
+			if (audioSource == null || (audioSource == currentAudioSource && currentAudioSource.isPlaying && !currentAudioSource.IsFadingOut()))
+				return;
+
+			if (currentAudioSource != null && currentAudioSource.isPlaying)
+			{
+				currentAudioSource.FadeOut(fadeOutDuration, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
+			}
+			audioSource.FadeIn(fadeInDuration, false, false, 1f);
+			currentAudioSource = audioSource;
 		}
 
 		private void PlayerExitBramble()
@@ -125,7 +128,7 @@ namespace OWML.LightBramble
 			SetupAudio();
 			ToggleFishFogLights(_disableFish);
 #if DEBUG
-			//warp player to ship, then ship to Bramble
+			//warp player to ship, then ship to Bramble.	WARNING: do not try to move until after ship warp
 			var shipBody = Locator.GetShipBody();
 			Task.Delay(200).ContinueWith(t => Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation()));
 			Task.Delay(2000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
@@ -150,6 +153,8 @@ namespace OWML.LightBramble
 				Destroy(musicManager);
 			musicManager = new GameObject("LightBramble_MusicManager");
 			musicManager.transform.SetParent(this.gameObject.transform);
+
+			//set to false so that we can add components without their start functions calling
 			musicManager.SetActive(false);
 			_dekuSource = musicManager.AddComponent<AudioSource>();
 			_dekuSource.clip = ModHelper.Assets.GetAudio("deku-tree.mp3");
@@ -172,17 +177,11 @@ namespace OWML.LightBramble
 				DebugLog("in solar system and bramble checktoggleables");
 				if (_swapMusic)
 				{
-					if (_brambleSource != null && _brambleSource.isPlaying)
-						_brambleSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-					if (dekuOWAudioSource != null && !dekuOWAudioSource.isPlaying)
-						dekuOWAudioSource.FadeIn(1f, false, false, 1f);
+					SetBrambleAudioSource(dekuOWAudioSource, 1f, 1f);
 				}
 				else
 				{
-					if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
-						dekuOWAudioSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-					if (_brambleSource != null && !_brambleSource.isPlaying)
-						_brambleSource.FadeIn(1f, false, false, 1f);
+					SetBrambleAudioSource(_brambleSource, 1f, 1f);
 				}
 
 				if (_disableFog)

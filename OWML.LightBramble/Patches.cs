@@ -4,6 +4,23 @@ using UnityEngine;
 
 namespace OWML.LightBramble
 {
+	public static class Patches
+	{
+		public static void SetupPatches()
+		{
+			Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper;
+			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
+			hmy.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
+			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));
+			hmy.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
+			hmy.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
+			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
+			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
+			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
+			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+		}
+	}
+
 	public class AnglerPatch
 	{
 		static public void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
@@ -54,7 +71,6 @@ namespace OWML.LightBramble
 			{
 				if (linkedFogLights[i].gameObject.name == "Lure_FogLight")
 				{
-					//linkedLightData[i].maxAlpha = 0f;
 					LightBramble.inst.lureLightDataList.Add(linkedLightData[i]);
 					LightBramble.inst.DebugLog("adding lure foglight, maxAlpha is " + linkedLightData[i].maxAlpha);
 				}
