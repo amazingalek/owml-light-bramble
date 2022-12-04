@@ -50,9 +50,6 @@ namespace OWML.LightBramble
 		{
 			Patches.SetupPatches();
 
-			var x = gameObject.GetComponents<MonoBehaviour>();
-			DebugLog("components on gameobject: " + x.Length);
-
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 			GlobalMessenger.AddListener("WakeUp", OnWakeUp);
@@ -96,7 +93,6 @@ namespace OWML.LightBramble
 
 		private void PlayerExitBramble()
 		{
-			DebugLog("Player exited bramble");
 			isInBramble = false;
 			EnableFog();
 		}
@@ -122,11 +118,6 @@ namespace OWML.LightBramble
 			Locator.GetShipBody().SetVelocity(astroObject.GetOWRigidbody().GetVelocity());
 		}
 
-		public T AddComponent<T>(T component) where T : MonoBehaviour
-		{
-			return gameObject.AddComponent<T>();
-		}
-
 		private void CheckToggleables()
 		{
 			ToggleFishFogLights(_disableFish);
@@ -149,7 +140,6 @@ namespace OWML.LightBramble
 
 		private void ToggleFishes(bool disabled)
 		{
-			DebugLog("Disabling multiple fish? : " + disabled.ToString());
 			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
 			{
 				ToggleFish(anglerfishController, disabled);
