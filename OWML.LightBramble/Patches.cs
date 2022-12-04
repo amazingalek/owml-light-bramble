@@ -18,7 +18,6 @@ namespace OWML.LightBramble
 			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
-			hmy.AddPostfix<FogLightManager>(nameof(FogLightManager.Awake), typeof(FogPatches), nameof(FogPatches.FogLightManagerAwakePostfix));
 		}
 	}
 
@@ -30,17 +29,14 @@ namespace OWML.LightBramble
 
 			if (!LightBramble.inst._disableFish && !__instance.gameObject.activeSelf && __instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
 			{
-				__instance.gameObject.SetActive(true);
-				__instance.GetAttachedOWRigidbody().Unsuspend(true);
-				__instance.RaiseEvent("OnAnglerUnsuspended", __instance.GetAnglerState());
+				LightBramble.inst.EnableAnglerfish(__instance);
 			}
 			else if (__instance.gameObject.activeSelf && !__instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
 			{
-				__instance.GetAttachedOWRigidbody().Suspend();
-				__instance.gameObject.SetActive(false);
-				__instance.RaiseEvent("OnAnglerSuspended", __instance.GetAnglerState());
+				LightBramble.inst.DisableAnglerfish(__instance);
 			}
 		}
+
 		static public void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.anglerfishList.Add(__instance);
@@ -54,11 +50,6 @@ namespace OWML.LightBramble
 
 	public class FogPatches
 	{
-		static public void FogLightManagerAwakePostfix(FogLightManager __instance)
-		{
-			LightBramble.inst.fogLightCanvas = __instance.GetValue<Canvas>("_canvas");
-		}
-
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
@@ -71,16 +62,8 @@ namespace OWML.LightBramble
 
 		static public void FogLightPostfix(FogLight __instance)
 		{
-			List<FogLight> linkedFogLights = __instance.GetValue<List<FogLight>>("_linkedFogLights");
-			List<FogLight.LightData> linkedLightData = __instance.GetValue<List<FogLight.LightData>>("_linkedLightData");
-			for (int i = 0; i < linkedFogLights.Count; i++)
-			{
-				if (linkedFogLights[i].gameObject.name == "Lure_FogLight")
-				{
-					LightBramble.inst.lureLightDataList.Add(linkedLightData[i]);
-					LightBramble.inst.DebugLog("adding lure foglight, maxAlpha is " + linkedLightData[i].maxAlpha);
-				}
-			}
+			if (__instance.gameObject.name == "Lure_FogLight")
+				LightBramble.inst.lureLights.Add(__instance);
 		}
 
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)

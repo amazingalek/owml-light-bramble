@@ -20,8 +20,7 @@ namespace OWML.LightBramble
 		public OWAudioSource dekuOWAudioSource;
 		public OWAudioSource currentAudioSource { private set; get; }
 
-		public Canvas fogLightCanvas;
-		public List<FogLight.LightData> lureLightDataList = new List<FogLight.LightData>();
+		public List<FogLight> lureLights = new List<FogLight>();
 		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
 		public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 		public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
@@ -125,8 +124,6 @@ namespace OWML.LightBramble
 		{
 			SetupAudio();
 			ToggleFishFogLights(_disableFish);
-			if (fogLightCanvas != null)
-				fogLightCanvas.enabled = !_disableFish;
 #if DEBUG
 			//warp player to ship, then ship to Bramble.	WARNING: do not move while warping
 			var shipBody = Locator.GetShipBody();
@@ -171,8 +168,6 @@ namespace OWML.LightBramble
 		private void CheckToggleables()
 		{
 			ToggleFishFogLights(_disableFish);
-			if (fogLightCanvas != null)
-				fogLightCanvas.enabled = !_disableFish;
 
 			if (isInSolarSystem && isInBramble)
 			{
@@ -209,26 +204,39 @@ namespace OWML.LightBramble
 				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
 				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
 
-				anglerfishController.GetAttachedOWRigidbody()?.Suspend();
-				anglerfishController.gameObject.SetActive(false);
-				anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
+				DisableAnglerfish(anglerfishController);
 			}
 			else if (!disabled && !anglerfishController.gameObject.activeSelf)
 			{
-				anglerfishController.gameObject.SetActive(true);
-				anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
-				anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
+				EnableAnglerfish(anglerfishController);
 			}
 			DebugLog("toggled a fish");
 		}
 
+		public void DisableAnglerfish(AnglerfishController anglerfishController)
+		{
+			anglerfishController.GetAttachedOWRigidbody()?.Suspend();
+			anglerfishController.gameObject.SetActive(false);
+			anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
+		}
+
+		public void EnableAnglerfish(AnglerfishController anglerfishController)
+		{
+			anglerfishController.gameObject.SetActive(true);
+			anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
+			anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
+		}
+
 		private void ToggleFishFogLights(bool disabled)
 		{
+			//if (fogLightCanvas != null)
+			//	fogLightCanvas.enabled = !_disableFish;
+
 			//TODO: turn lureLightData into a dict and use it to set maxAlpha to its original value
-			float newAlpha = disabled ? 0f : 0.5f;
-			foreach (FogLight.LightData lightData in lureLightDataList)
+			float newDistance = disabled ? 0f : float.PositiveInfinity;
+			foreach (FogLight fogLight in lureLights)
 			{
-				lightData.maxAlpha = newAlpha;
+				fogLight.SetValue("_maxVisibleDistance", newDistance);
 			}
 		}
 
