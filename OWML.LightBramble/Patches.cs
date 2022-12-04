@@ -39,12 +39,12 @@ namespace OWML.LightBramble
 
 		static public void AwakePostfix(AnglerfishController __instance)
 		{
-			LightBramble.inst.anglerfishList.Add(__instance);
+			LightBramble.inst.collections.anglerfishList.Add(__instance);
 			//__instance.OnAnglerSuspended += (anglerState) => LightBramble.inst.DebugLog("angler suspended event called");
 		}
 		static public void OnDestroyPrefix(AnglerfishController __instance)
 		{
-			LightBramble.inst.anglerfishList.Remove(__instance);
+			LightBramble.inst.collections.anglerfishList.Remove(__instance);
 		}
 	}
 
@@ -52,23 +52,23 @@ namespace OWML.LightBramble
 	{
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
-			LightBramble.inst.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
+			LightBramble.inst.collections.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
 		}
 
 		static public void PlanetaryFogPostfix(PlanetaryFogController __instance)
 		{
-			LightBramble.inst.planetaryFogControllerDict.Add(__instance, __instance.fogTint);
+			LightBramble.inst.collections.planetaryFogControllerDict.Add(__instance, __instance.fogTint);
 		}
 
 		static public void FogLightPostfix(FogLight __instance)
 		{
 			if (__instance.gameObject.name == "Lure_FogLight")
-				LightBramble.inst.lureLights.Add(__instance);
+				LightBramble.inst.collections.lureLights.Add(__instance);
 		}
 
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
-			LightBramble.inst.fogOverrideVolumeDict.Add(__instance, __instance.tint);
+			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
 		}
 	}
 

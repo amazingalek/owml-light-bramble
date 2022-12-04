@@ -14,11 +14,16 @@ namespace OWML.LightBramble
 	{
 		public MusicManager musicManager;
 
-		public List<FogLight> lureLights = new List<FogLight>();
-		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
-		public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
-		public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
-		public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
+		public class CollectionHolder
+		{
+			public List<FogLight> lureLights = new List<FogLight>();
+			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
+			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
+			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
+			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
+		}
+		//can destroy the instance instead of a bunch of OnDestroy patches to remove from the lists
+		public CollectionHolder collections = new CollectionHolder();
 
 		private bool isInSolarSystem = false;   //updated on every scene load
 		private bool isInBramble = false;   //updated by a global event called by the game
@@ -71,7 +76,10 @@ namespace OWML.LightBramble
 			isInSolarSystem = (newScene == OWScene.SolarSystem);
 			//this handles exiting to the menu from bramble
 			if (!isInSolarSystem)
+			{
 				isInBramble = false;
+				collections = new CollectionHolder();	//clear out the old data (gc will get it)
+			}
 		}
 
 		private void PlayerEnterBramble()
@@ -142,7 +150,7 @@ namespace OWML.LightBramble
 		private void ToggleFishes(bool disabled)
 		{
 			DebugLog("Disabling multiple fish? : " + disabled.ToString());
-			foreach (AnglerfishController anglerfishController in anglerfishList)
+			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
 			{
 				ToggleFish(anglerfishController, disabled);
 			}
@@ -184,7 +192,7 @@ namespace OWML.LightBramble
 		private void ToggleFishFogLights(bool disabled)
 		{
 			float newDistance = disabled ? 0f : float.PositiveInfinity;
-			foreach (FogLight fogLight in lureLights)
+			foreach (FogLight fogLight in collections.lureLights)
 			{
 				fogLight.SetValue("_maxVisibleDistance", newDistance);
 			}
@@ -193,15 +201,15 @@ namespace OWML.LightBramble
 		private void EnableFog()
 		{
 			DebugLog("Enabling Fog");
-			foreach (KeyValuePair<FogWarpVolume, Color> kvp in fogWarpVolumeDict)
+			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", kvp.Value);
 			}
-			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in planetaryFogControllerDict)
+			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = kvp.Value;
 			}
-			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in fogOverrideVolumeDict)
+			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = kvp.Value;
 			}
@@ -210,15 +218,15 @@ namespace OWML.LightBramble
 		private void DisableFog()
 		{
 			DebugLog("Disabling Fog");
-			foreach (KeyValuePair<FogWarpVolume, Color> kvp in fogWarpVolumeDict)
+			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", Color.clear);
 			}
-			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in planetaryFogControllerDict)
+			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = Color.clear;
 			}
-			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in fogOverrideVolumeDict)
+			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = Color.clear;
 			}
