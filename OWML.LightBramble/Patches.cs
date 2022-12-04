@@ -16,7 +16,7 @@ namespace OWML.LightBramble
 			hmy.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
 			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
 			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
-			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
+			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
 		}
 	}
@@ -40,7 +40,7 @@ namespace OWML.LightBramble
 		static public void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.anglerfishList.Add(__instance);
-			__instance.OnAnglerSuspended += (anglerState) => LightBramble.inst.DebugLog("angler suspended event called");
+			//__instance.OnAnglerSuspended += (anglerState) => LightBramble.inst.DebugLog("angler suspended event called");
 		}
 		static public void OnDestroyPrefix(AnglerfishController __instance)
 		{
@@ -74,11 +74,9 @@ namespace OWML.LightBramble
 
 	public class GlobalMusicControllerPatch
 	{
-		static public void GlobalMusicControllerPostfix(GlobalMusicController __instance)
+		static public void GlobalMusicControllerStartPostfix(GlobalMusicController __instance)
 		{
-			LightBramble.inst.globalMusicController = __instance;
-			LightBramble.inst._brambleSource = __instance.GetValue<OWAudioSource>("_darkBrambleSource");
-			LightBramble.inst.ModHelper.HarmonyHelper.EmptyMethod<GlobalMusicController>(nameof(GlobalMusicController.UpdateBrambleMusic));
+			LightBramble.inst.musicManager = new MusicManager(__instance);
 		}
 	}
 

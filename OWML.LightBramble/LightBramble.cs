@@ -1,6 +1,4 @@
-﻿#define DEBUG
-
-using OWML.Common;
+﻿using OWML.Common;
 using OWML.ModHelper;
 using OWML.Utils;
 using UnityEngine;
@@ -8,17 +6,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace OWML.LightBramble
 {
 	public class LightBramble : ModBehaviour
 	{
-		public GameObject musicManager;
-		public GlobalMusicController globalMusicController;
-		public AudioSource _dekuSource;
-		public OWAudioSource _brambleSource;
-		public OWAudioSource dekuOWAudioSource;
-		public OWAudioSource currentAudioSource { private set; get; }
+		public MusicManager musicManager;
 
 		public List<FogLight> lureLights = new List<FogLight>();
 		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
@@ -51,6 +45,9 @@ namespace OWML.LightBramble
 		{
 			Patches.SetupPatches();
 
+			var x = gameObject.GetComponents<MonoBehaviour>();
+			DebugLog("components on gameobject: " + x.Length);
+
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 			GlobalMessenger.AddListener("WakeUp", OnWakeUp);
@@ -74,13 +71,7 @@ namespace OWML.LightBramble
 			isInSolarSystem = (newScene == OWScene.SolarSystem);
 			//this handles exiting to the menu from bramble
 			if (!isInSolarSystem)
-			{
 				isInBramble = false;
-				if (_brambleSource != null && _brambleSource.isPlaying)
-					_brambleSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-				else if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
-					dekuOWAudioSource.FadeOut(1f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-			}
 		}
 
 		private void PlayerEnterBramble()
@@ -90,22 +81,9 @@ namespace OWML.LightBramble
 			if (_disableFog)
 				DisableFog();
 			if (_swapMusic)
-				SetBrambleAudioSource(dekuOWAudioSource, 1f, 0f);
+				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
-				SetBrambleAudioSource(_brambleSource, 1f, 0f);
-		}
-
-		private void SetBrambleAudioSource(OWAudioSource audioSource, float fadeInDuration, float fadeOutDuration)
-		{
-			if (audioSource == null || (audioSource == currentAudioSource && currentAudioSource.isPlaying && !currentAudioSource.IsFadingOut()))
-				return;
-
-			if (currentAudioSource != null && currentAudioSource.isPlaying)
-			{
-				currentAudioSource.FadeOut(fadeOutDuration, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-			}
-			audioSource.FadeIn(fadeInDuration, false, false, 1f);
-			currentAudioSource = audioSource;
+				musicManager.SwapMusic(BrambleMusic.Spooky, 1f, 0f);
 		}
 
 		private void PlayerExitBramble()
@@ -113,22 +91,16 @@ namespace OWML.LightBramble
 			DebugLog("Player exited bramble");
 			isInBramble = false;
 			EnableFog();
-			//fade out of whichever source is playing
-			if (_brambleSource != null && _brambleSource.isPlaying)
-				_brambleSource.FadeOut(3f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
-			else if (dekuOWAudioSource != null && dekuOWAudioSource.isPlaying)
-				dekuOWAudioSource.FadeOut(3f, OWAudioSource.FadeOutCompleteAction.STOP, 0f);
 		}
 
 		private void OnWakeUp()
 		{
-			SetupAudio();
 			ToggleFishFogLights(_disableFish);
 #if DEBUG
 			//warp player to ship, then ship to Bramble.	WARNING: do not move while warping
 			var shipBody = Locator.GetShipBody();
-			Task.Delay(200).ContinueWith(t => Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation()));
-			Task.Delay(2000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+			Task.Delay(1000).ContinueWith(t => Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation()));
+			Task.Delay(4800).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
 #endif
 		}
 
@@ -142,27 +114,9 @@ namespace OWML.LightBramble
 			Locator.GetShipBody().SetVelocity(astroObject.GetOWRigidbody().GetVelocity());
 		}
 
-		private void SetupAudio()
+		public T AddComponent<T>(T component) where T : MonoBehaviour
 		{
-			//load audio, add it to an AudioSource component, then set up an OWAudioSource on musicManager
-			DebugLog("SetupAudio called");
-			if (musicManager != null)
-				Destroy(musicManager);
-			musicManager = new GameObject("LightBramble_MusicManager");
-			musicManager.transform.SetParent(this.gameObject.transform);
-
-			//set to false so that we can add components without their start functions calling
-			musicManager.SetActive(false);
-			_dekuSource = musicManager.AddComponent<AudioSource>();
-			_dekuSource.clip = ModHelper.Assets.GetAudio("deku-tree.mp3");
-
-			dekuOWAudioSource = musicManager.AddComponent<OWAudioSource>();
-			dekuOWAudioSource.SetValue("_audioSource", _dekuSource);
-			dekuOWAudioSource.SetTrack(OWAudioMixer.TrackName.Music);
-			musicManager.SetActive(true);
-
-			//I don't know why this delay is necessary, but it is
-			Task.Delay(500).ContinueWith(t => dekuOWAudioSource.Stop());
+			return gameObject.AddComponent<T>();
 		}
 
 		private void CheckToggleables()
@@ -172,9 +126,9 @@ namespace OWML.LightBramble
 			if (isInSolarSystem && isInBramble)
 			{
 				if (_swapMusic)
-					SetBrambleAudioSource(dekuOWAudioSource, 1f, 1f);
+					musicManager.SwapMusic(BrambleMusic.Deku);
 				else
-					SetBrambleAudioSource(_brambleSource, 1f, 1f);
+					musicManager.SwapMusic(BrambleMusic.Spooky);
 
 				if (_disableFog)
 					DisableFog();
@@ -229,10 +183,6 @@ namespace OWML.LightBramble
 
 		private void ToggleFishFogLights(bool disabled)
 		{
-			//if (fogLightCanvas != null)
-			//	fogLightCanvas.enabled = !_disableFish;
-
-			//TODO: turn lureLightData into a dict and use it to set maxAlpha to its original value
 			float newDistance = disabled ? 0f : float.PositiveInfinity;
 			foreach (FogLight fogLight in lureLights)
 			{
@@ -281,7 +231,7 @@ namespace OWML.LightBramble
 #endif
 		}
 
-		private void DebugLog(string str, MessageType messageType)
+		public void DebugLog(string str, MessageType messageType)
 		{
 #if DEBUG
 			ModHelper.Console.WriteLine(str, messageType);
