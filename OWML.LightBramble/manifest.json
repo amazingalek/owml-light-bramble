@@ -1,9 +1,9 @@
 {
   "filename": "OWML.LightBramble.dll",
-  "author": "Alek",
+  "author": "Alek & sandsalamand",
   "name": "LightBramble",
   "uniqueName": "Alek.LightBramble",
-  "version": "0.7",
-  "owmlVersion": "2.3.1",
+  "version": "1.0",
+  "owmlVersion": "2.8.0",
   "description": "No fog. No anglerfish. Nice music."
 }
