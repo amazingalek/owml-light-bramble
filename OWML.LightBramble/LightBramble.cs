@@ -20,6 +20,7 @@ namespace OWML.LightBramble
 		public OWAudioSource dekuOWAudioSource;
 		public OWAudioSource currentAudioSource { private set; get; }
 
+		public Canvas fogLightCanvas;
 		public List<FogLight.LightData> lureLightDataList = new List<FogLight.LightData>();
 		public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
 		public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
@@ -33,7 +34,7 @@ namespace OWML.LightBramble
 		public bool _swapMusic = true;
 		public bool _disableFish = true;
 		public bool _disableFog = true;
-		 
+
 		private MethodInfo anglerChangeState;
 
 		public static LightBramble inst;
@@ -86,14 +87,11 @@ namespace OWML.LightBramble
 		private void PlayerEnterBramble()
 		{
 			isInBramble = true;
+
 			if (_disableFog)
-			{
 				DisableFog();
-			}
 			if (_swapMusic)
-			{
 				SetBrambleAudioSource(dekuOWAudioSource, 1f, 0f);
-			}
 			else
 				SetBrambleAudioSource(_brambleSource, 1f, 0f);
 		}
@@ -127,8 +125,10 @@ namespace OWML.LightBramble
 		{
 			SetupAudio();
 			ToggleFishFogLights(_disableFish);
+			if (fogLightCanvas != null)
+				fogLightCanvas.enabled = !_disableFish;
 #if DEBUG
-			//warp player to ship, then ship to Bramble.	WARNING: do not try to move until after ship warp
+			//warp player to ship, then ship to Bramble.	WARNING: do not move while warping
 			var shipBody = Locator.GetShipBody();
 			Task.Delay(200).ContinueWith(t => Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation()));
 			Task.Delay(2000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
@@ -171,27 +171,20 @@ namespace OWML.LightBramble
 		private void CheckToggleables()
 		{
 			ToggleFishFogLights(_disableFish);
+			if (fogLightCanvas != null)
+				fogLightCanvas.enabled = !_disableFish;
 
 			if (isInSolarSystem && isInBramble)
 			{
-				DebugLog("in solar system and bramble checktoggleables");
 				if (_swapMusic)
-				{
 					SetBrambleAudioSource(dekuOWAudioSource, 1f, 1f);
-				}
 				else
-				{
 					SetBrambleAudioSource(_brambleSource, 1f, 1f);
-				}
 
 				if (_disableFog)
-				{
 					DisableFog();
-				}
 				else if (!_disableFog)
-				{
 					EnableFog();
-				}
 
 				ToggleFishes(_disableFish);
 			}

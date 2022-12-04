@@ -18,6 +18,7 @@ namespace OWML.LightBramble
 			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+			hmy.AddPostfix<FogLightManager>(nameof(FogLightManager.Awake), typeof(FogPatches), nameof(FogPatches.FogLightManagerAwakePostfix));
 		}
 	}
 
@@ -53,6 +54,11 @@ namespace OWML.LightBramble
 
 	public class FogPatches
 	{
+		static public void FogLightManagerAwakePostfix(FogLightManager __instance)
+		{
+			LightBramble.inst.fogLightCanvas = __instance.GetValue<Canvas>("_canvas");
+		}
+
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
