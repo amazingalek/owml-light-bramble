@@ -7,8 +7,8 @@
     <ProjectGuid>{C19CC2AA-5694-44E6-B653-1BF7E953F105}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OWML.LightBramble</RootNamespace>
-    <AssemblyName>OWML.LightBramble</AssemblyName>
+    <RootNamespace>LightBramble</RootNamespace>
+    <AssemblyName>LightBramble</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>

@@ -1,14 +1,13 @@
 ﻿using OWML.Utils;
-using System.Collections.Generic;
 using UnityEngine;
 
-namespace OWML.LightBramble
+namespace LightBramble
 {
 	public static class Patches
 	{
 		public static void SetupPatches()
 		{
-			Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper;
+			OWML.Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper;
 			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
 			hmy.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
 			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));

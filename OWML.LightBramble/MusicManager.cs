@@ -1,8 +1,7 @@
 ﻿using OWML.Utils;
-using System.Collections.Generic;
 using UnityEngine;
 
-namespace OWML.LightBramble
+namespace LightBramble
 {
 	public class MusicManager
 	{

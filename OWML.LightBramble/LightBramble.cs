@@ -8,10 +8,12 @@ using System;
 using System.Threading.Tasks;
 using System.Linq;
 
-namespace OWML.LightBramble
+namespace LightBramble
 {
 	public class LightBramble : ModBehaviour
 	{
+		public static LightBramble inst;
+
 		public MusicManager musicManager;
 
 		public class CollectionHolder
@@ -29,13 +31,29 @@ namespace OWML.LightBramble
 		private bool isInBramble = false;   //updated by a global event called by the game
 
 		//Config toggles, automatically modified from Configure when the user toggles them in the OWML menu
-		public bool _swapMusic = true;
-		public bool _disableFish = true;
-		public bool _disableFog = true;
+		public bool _swapMusic => currentConfig.swapMusic;
+		public bool _disableFish => currentConfig.disableFish;
+		public bool _disableFog => currentConfig.disableFog;
 
 		private MethodInfo anglerChangeState;
 
-		public static LightBramble inst;
+		//QSB-compatibility
+		public Action<BrambleConfig> ConfigChanged;
+
+		public struct BrambleConfig
+		{
+			public bool swapMusic;
+			public bool disableFish;
+			public bool disableFog;
+
+			public BrambleConfig(bool __swapMusic = true, bool __disableFish = true, bool __disableFog = true)
+			{
+				swapMusic = __swapMusic;
+				disableFish = __disableFish;
+				disableFog = __disableFog;
+			}
+		}
+		public BrambleConfig currentConfig = new BrambleConfig();
 
 		private void Awake()
 		{
@@ -43,7 +61,7 @@ namespace OWML.LightBramble
 			if (inst == null)
 				inst = this;
 			else
-				Destroy(this.gameObject);
+				Destroy(this);
 		}
 
 		private void Start()
@@ -62,9 +80,10 @@ namespace OWML.LightBramble
 
 		public override void Configure(IModConfig config)
 		{
-			_swapMusic = config.GetSettingsValue<bool>("swapMusic");
-			_disableFish = config.GetSettingsValue<bool>("disableFish");
-			_disableFog = config.GetSettingsValue<bool>("disableFog");
+			currentConfig.swapMusic = config.GetSettingsValue<bool>("swapMusic");
+			currentConfig.disableFish = config.GetSettingsValue<bool>("disableFish");
+			currentConfig.disableFog = config.GetSettingsValue<bool>("disableFog");
+			ConfigChanged?.Invoke(currentConfig);
 			CheckToggleables();
 		}
 
@@ -89,6 +108,7 @@ namespace OWML.LightBramble
 				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
 				musicManager.SwapMusic(BrambleMusic.Spooky, 1f, 0f);
+
 		}
 
 		private void PlayerExitBramble()
@@ -103,43 +123,36 @@ namespace OWML.LightBramble
 #if DEBUG
 			//warp player to ship, then ship to Bramble.	WARNING: do not move while warping
 			var shipBody = Locator.GetShipBody();
-			Task.Delay(1000).ContinueWith(t => Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation()));
-			Task.Delay(4800).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+			Task.Delay(3000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+			Task.Delay(4800).ContinueWith(t => {
+				Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation());
+				Locator.GetPlayerBody().SetVelocity(shipBody.GetVelocity());
+			});
 #endif
-		}
-
-		/// <summary>
-		/// Warps to an AstroObject at a specified offset and matches the ship's velocity to that of the AstroObject
-		/// </summary>
-		private void WarpShip(AstroObject.Name astroObjectName, Vector3 offset)
-		{
-			var astroObject = Locator.GetAstroObject(astroObjectName);
-			Locator.GetShipBody().WarpToPositionRotation(astroObject.transform.position + offset, astroObject.transform.rotation);
-			Locator.GetShipBody().SetVelocity(astroObject.GetOWRigidbody().GetVelocity());
 		}
 
 		private void CheckToggleables()
 		{
 			ToggleFishFogLights(_disableFish);
+			ToggleFishes(_disableFish);
+
+			if (_swapMusic)
+				musicManager?.SwapMusic(BrambleMusic.Deku);
+			else
+				musicManager?.SwapMusic(BrambleMusic.Spooky);
 
 			if (isInSolarSystem && isInBramble)
 			{
-				if (_swapMusic)
-					musicManager.SwapMusic(BrambleMusic.Deku);
-				else
-					musicManager.SwapMusic(BrambleMusic.Spooky);
-
 				if (_disableFog)
 					DisableFog();
-				else if (!_disableFog)
+				else
 					EnableFog();
-
-				ToggleFishes(_disableFish);
 			}
 		}
 
 		private void ToggleFishes(bool disabled)
 		{
+			DebugLog("Toggling fish");
 			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
 			{
 				ToggleFish(anglerfishController, disabled);
@@ -162,14 +175,17 @@ namespace OWML.LightBramble
 			{
 				EnableAnglerfish(anglerfishController);
 			}
-			DebugLog("toggled a fish");
 		}
 
-		public void DisableAnglerfish(AnglerfishController anglerfishController)
+		private void ToggleFishFogLights(bool disabled)
 		{
-			anglerfishController.GetAttachedOWRigidbody()?.Suspend();
-			anglerfishController.gameObject.SetActive(false);
-			anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
+			float newDistance = disabled ? 0f : float.PositiveInfinity;
+			foreach (FogLight fogLight in collections.lureLights)
+			{
+				fogLight.SetValue("_maxVisibleDistance", newDistance);
+				//foreach (FogLight linkedFogLight in fogLight.GetValue<List<FogLight>>("_linkedFogLights"))
+				//	linkedFogLight.SetValue("_maxVisibleDistance", newDistance);
+			}
 		}
 
 		public void EnableAnglerfish(AnglerfishController anglerfishController)
@@ -179,13 +195,11 @@ namespace OWML.LightBramble
 			anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
 		}
 
-		private void ToggleFishFogLights(bool disabled)
+		public void DisableAnglerfish(AnglerfishController anglerfishController)
 		{
-			float newDistance = disabled ? 0f : float.PositiveInfinity;
-			foreach (FogLight fogLight in collections.lureLights)
-			{
-				fogLight.SetValue("_maxVisibleDistance", newDistance);
-			}
+			anglerfishController.GetAttachedOWRigidbody()?.Suspend();
+			anglerfishController.gameObject.SetActive(false);
+			anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
 		}
 
 		private void EnableFog()
@@ -197,6 +211,7 @@ namespace OWML.LightBramble
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
+				//if (kvp.Key.GetValue<Renderer>("_fogImpostor").bounds.center 
 				kvp.Key.fogTint = kvp.Value;
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
@@ -234,6 +249,16 @@ namespace OWML.LightBramble
 #if DEBUG
 			ModHelper.Console.WriteLine(str, messageType);
 #endif
+		}
+
+		/// <summary>
+		/// Warps to an AstroObject at a specified offset and matches the ship's velocity to that of the AstroObject
+		/// </summary>
+		private void WarpShip(AstroObject.Name astroObjectName, Vector3 offset)
+		{
+			var astroObject = Locator.GetAstroObject(astroObjectName);
+			Locator.GetShipBody().WarpToPositionRotation(astroObject.transform.position + offset, astroObject.transform.rotation);
+			Locator.GetShipBody().SetVelocity(astroObject.GetOWRigidbody().GetVelocity());
 		}
 	}
 }

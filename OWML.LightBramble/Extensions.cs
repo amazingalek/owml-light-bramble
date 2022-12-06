@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace OWML.LightBramble
+namespace LightBramble
 {
 	static class Extensions
 	{
