@@ -5,8 +5,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection;
 using System;
-using System.Threading.Tasks;
-using System.Linq;
 
 namespace LightBramble
 {
@@ -15,22 +13,22 @@ namespace LightBramble
 		public static LightBramble inst;
 
 		public MusicManager musicManager;
+		public Canvas fogLightCanvas;
 
 		public class CollectionHolder
 		{
-			public List<FogLight> lureLights = new List<FogLight>();
 			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
 			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
 		}
-		//can destroy the instance instead of a bunch of OnDestroy patches to remove from the lists
+		//used to easily dereference all collections instead of a bunch of OnDestroy patches to remove from them
 		public CollectionHolder collections = new CollectionHolder();
 
-		private bool isInSolarSystem = false;   //updated on every scene load
+		private bool isInSolarSystem = false;   //updated on scene load
 		private bool isInBramble = false;   //updated by a global event called by the game
 
-		//Config toggles, automatically modified from Configure when the user toggles them in the OWML menu
+		//Config toggles, modified by Configure when the user exits the OWML mod toggle page
 		public bool _swapMusic => currentConfig.swapMusic;
 		public bool _disableFish => currentConfig.disableFish;
 		public bool _disableFog => currentConfig.disableFog;
@@ -57,7 +55,6 @@ namespace LightBramble
 
 		private void Awake()
 		{
-			//setup singleton
 			if (inst == null)
 				inst = this;
 			else
@@ -72,6 +69,7 @@ namespace LightBramble
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 			GlobalMessenger.AddListener("WakeUp", OnWakeUp);
 			LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
+			LoadManager.OnStartSceneLoad += OnStartSceneLoad;
 
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
@@ -80,6 +78,7 @@ namespace LightBramble
 
 		public override void Configure(IModConfig config)
 		{
+			DebugLog("Configure called");
 			currentConfig.swapMusic = config.GetSettingsValue<bool>("swapMusic");
 			currentConfig.disableFish = config.GetSettingsValue<bool>("disableFish");
 			currentConfig.disableFog = config.GetSettingsValue<bool>("disableFog");
@@ -87,15 +86,14 @@ namespace LightBramble
 			CheckToggleables();
 		}
 
+		//clear collections and let the gc get the old lists/dicts
+		private void OnStartSceneLoad(OWScene oldScene, OWScene newScene) => collections = new CollectionHolder();
+
 		private void OnCompleteSceneLoad(OWScene oldScene, OWScene newScene)
 		{
 			isInSolarSystem = (newScene == OWScene.SolarSystem);
-			//this handles exiting to the menu from bramble
-			if (!isInSolarSystem)
-			{
-				isInBramble = false;
-				collections = new CollectionHolder();	//clear out the old data (gc will get it)
-			}
+			if (!isInSolarSystem)   //this is necessary because the game does not call PlayerExitBrambleDimension when exiting to menu
+				PlayerExitBramble();
 		}
 
 		private void PlayerEnterBramble()
@@ -108,7 +106,6 @@ namespace LightBramble
 				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
 				musicManager.SwapMusic(BrambleMusic.Spooky, 1f, 0f);
-
 		}
 
 		private void PlayerExitBramble()
@@ -119,12 +116,12 @@ namespace LightBramble
 
 		private void OnWakeUp()
 		{
-			ToggleFishFogLights(_disableFish);
+			CheckToggleables();
 #if DEBUG
-			//warp player to ship, then ship to Bramble.	WARNING: do not move while warping
+			//warp ship to Bramble, then player to ship
 			var shipBody = Locator.GetShipBody();
-			Task.Delay(3000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
-			Task.Delay(4800).ContinueWith(t => {
+			Task.Delay(1000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+			Task.Delay(2800).ContinueWith(t => {
 				Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation());
 				Locator.GetPlayerBody().SetVelocity(shipBody.GetVelocity());
 			});
@@ -133,8 +130,9 @@ namespace LightBramble
 
 		private void CheckToggleables()
 		{
-			ToggleFishFogLights(_disableFish);
 			ToggleFishes(_disableFish);
+			if (fogLightCanvas != null)
+				fogLightCanvas.enabled = !_disableFish;
 
 			if (_swapMusic)
 				musicManager?.SwapMusic(BrambleMusic.Deku);
@@ -177,17 +175,6 @@ namespace LightBramble
 			}
 		}
 
-		private void ToggleFishFogLights(bool disabled)
-		{
-			float newDistance = disabled ? 0f : float.PositiveInfinity;
-			foreach (FogLight fogLight in collections.lureLights)
-			{
-				fogLight.SetValue("_maxVisibleDistance", newDistance);
-				//foreach (FogLight linkedFogLight in fogLight.GetValue<List<FogLight>>("_linkedFogLights"))
-				//	linkedFogLight.SetValue("_maxVisibleDistance", newDistance);
-			}
-		}
-
 		public void EnableAnglerfish(AnglerfishController anglerfishController)
 		{
 			anglerfishController.gameObject.SetActive(true);
@@ -211,7 +198,6 @@ namespace LightBramble
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
-				//if (kvp.Key.GetValue<Renderer>("_fogImpostor").bounds.center 
 				kvp.Key.fogTint = kvp.Value;
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
@@ -226,14 +212,17 @@ namespace LightBramble
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", Color.clear);
+				DebugLog("disabling fogWarpVolume");
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = Color.clear;
+				DebugLog("disabling planetaryfogcontroller");
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = Color.clear;
+				DebugLog("disabling fogoverridevolume");
 			}
 		}
 
@@ -251,6 +240,7 @@ namespace LightBramble
 #endif
 		}
 
+#if DEBUG
 		/// <summary>
 		/// Warps to an AstroObject at a specified offset and matches the ship's velocity to that of the AstroObject
 		/// </summary>
@@ -260,5 +250,6 @@ namespace LightBramble
 			Locator.GetShipBody().WarpToPositionRotation(astroObject.transform.position + offset, astroObject.transform.rotation);
 			Locator.GetShipBody().SetVelocity(astroObject.GetOWRigidbody().GetVelocity());
 		}
+#endif
 	}
 }

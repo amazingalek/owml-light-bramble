@@ -8,19 +8,19 @@ namespace LightBramble
 		public static void SetupPatches()
 		{
 			OWML.Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper;
-			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatch), nameof(AnglerPatch.SectorUpdated));
-			hmy.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatch), nameof(AnglerPatch.AwakePostfix));
-			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatch), nameof(AnglerPatch.OnDestroyPrefix));
+			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatches), nameof(AnglerPatches.SectorUpdated));
+			hmy.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatches), nameof(AnglerPatches.AwakePostfix));
+			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatches), nameof(AnglerPatches.OnDestroyPrefix));
 			hmy.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
 			hmy.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
 			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
-			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightPostfix));
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+			hmy.AddPostfix<FogLightManager>(nameof(FogLightManager.Awake), typeof(FogPatches), nameof(FogPatches.FogLightManagerAwakePostfix));
 		}
 	}
 
-	public class AnglerPatch
+	public class AnglerPatches
 	{
 		static public void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
 		{
@@ -39,7 +39,6 @@ namespace LightBramble
 		static public void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Add(__instance);
-			//__instance.OnAnglerSuspended += (anglerState) => LightBramble.inst.DebugLog("angler suspended event called");
 		}
 		static public void OnDestroyPrefix(AnglerfishController __instance)
 		{
@@ -49,6 +48,11 @@ namespace LightBramble
 
 	public class FogPatches
 	{
+		static public void FogLightManagerAwakePostfix(FogLightManager __instance)
+		{
+			LightBramble.inst.fogLightCanvas = __instance.GetValue<Canvas>("_canvas");
+		}
+
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.collections.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
@@ -57,12 +61,6 @@ namespace LightBramble
 		static public void PlanetaryFogPostfix(PlanetaryFogController __instance)
 		{
 			LightBramble.inst.collections.planetaryFogControllerDict.Add(__instance, __instance.fogTint);
-		}
-
-		static public void FogLightPostfix(FogLight __instance)
-		{
-			if (__instance.gameObject.name == "Lure_FogLight")
-				LightBramble.inst.collections.lureLights.Add(__instance);
 		}
 
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
