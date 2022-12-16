@@ -1,4 +1,6 @@
-﻿using OWML.Utils;
+﻿#define DEBUG
+
+using OWML.Utils;
 using UnityEngine;
 
 namespace LightBramble
@@ -29,7 +31,8 @@ namespace LightBramble
 			else
 				clipToPlay = dekuClip;
 
-			if (brambleOWAudioSource.clip == clipToPlay)	//if already playing that clip, then return
+			LightBramble.inst.DebugLog("clipToPlay is " + (clipToPlay ? "not null" : "null"));
+			if (brambleOWAudioSource == null || clipToPlay == null || brambleOWAudioSource.clip == clipToPlay)	//if already playing the same clip
 				return;
 
 			brambleOWAudioSource.clip = clipToPlay;

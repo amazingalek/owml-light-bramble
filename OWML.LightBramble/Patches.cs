@@ -1,5 +1,7 @@
 ﻿using OWML.Utils;
 using UnityEngine;
+using Harmony;
+using OWML.ModHelper;
 
 namespace LightBramble
 {
@@ -17,6 +19,7 @@ namespace LightBramble
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
 			hmy.AddPostfix<FogLightManager>(nameof(FogLightManager.Awake), typeof(FogPatches), nameof(FogPatches.FogLightManagerAwakePostfix));
+			hmy.AddPostfix<FogLight>(nameof(FogLight.Awake), typeof(FogPatches), nameof(FogPatches.FogLightPrefix));
 		}
 	}
 
@@ -25,15 +28,8 @@ namespace LightBramble
 		static public void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
 		{
 			__runOriginal = false;
-
-			if (!LightBramble.inst._disableFish && !__instance.gameObject.activeSelf && __instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
-			{
-				LightBramble.inst.EnableAnglerfish(__instance);
-			}
-			else if (__instance.gameObject.activeSelf && !__instance.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
-			{
-				LightBramble.inst.DisableAnglerfish(__instance);
-			}
+			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
+								LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
 		}
 
 		static public void AwakePostfix(AnglerfishController __instance)
@@ -51,6 +47,7 @@ namespace LightBramble
 		static public void FogLightManagerAwakePostfix(FogLightManager __instance)
 		{
 			LightBramble.inst.fogLightCanvas = __instance.GetValue<Canvas>("_canvas");
+			LightBramble.inst.fogLightManager = __instance;
 		}
 
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
@@ -66,6 +63,11 @@ namespace LightBramble
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
 			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
+		}
+
+		public static void FogLightPrefix(FogLight __instance)
+		{
+			LightBramble.inst.collections.fogLights.Add(__instance);
 		}
 	}
 

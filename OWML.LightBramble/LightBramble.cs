@@ -1,10 +1,13 @@
-﻿using OWML.Common;
+﻿#define DEBUG
+
+using OWML.Common;
 using OWML.ModHelper;
 using OWML.Utils;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection;
 using System;
+using static OWML.ModHelper.Events.ModUnityEvents;
 
 namespace LightBramble
 {
@@ -14,10 +17,12 @@ namespace LightBramble
 
 		public MusicManager musicManager;
 		public Canvas fogLightCanvas;
+		public FogLightManager fogLightManager;
 
 		public class CollectionHolder
 		{
 			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
+			public List<FogLight> fogLights = new List<FogLight>();
 			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
@@ -34,6 +39,7 @@ namespace LightBramble
 		public bool _disableFog => currentConfig.disableFog;
 
 		private MethodInfo anglerChangeState;
+		private MethodInfo fogLightUpdate;
 
 		//QSB-compatibility
 		public Action<BrambleConfig> ConfigChanged;
@@ -74,6 +80,8 @@ namespace LightBramble
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
 			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);
+			Type fogLightType = typeof(FogLight);
+			fogLightUpdate = fogLightType.GetMethod(nameof(FogLight.UpdateFogLight), BindingFlags.NonPublic | BindingFlags.Instance);
 		}
 
 		public override void Configure(IModConfig config)
@@ -120,35 +128,34 @@ namespace LightBramble
 #if DEBUG
 			//warp ship to Bramble, then player to ship
 			var shipBody = Locator.GetShipBody();
-			Task.Delay(1000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
-			Task.Delay(2800).ContinueWith(t => {
+			System.Threading.Tasks.Task.Delay(1000).ContinueWith(t => WarpShip(AstroObject.Name.DarkBramble, offset: new Vector3(1000, 0, 0)));
+			System.Threading.Tasks.Task.Delay(2800).ContinueWith(t => {
 				Locator.GetPlayerBody().GetAttachedOWRigidbody().WarpToPositionRotation(shipBody.GetPosition(), shipBody.GetRotation());
 				Locator.GetPlayerBody().SetVelocity(shipBody.GetVelocity());
 			});
 #endif
 		}
 
-		private void CheckToggleables()
+		internal void CheckToggleables()
 		{
-			ToggleFishes(_disableFish);
-			if (fogLightCanvas != null)
-				fogLightCanvas.enabled = !_disableFish;
+			//need to toggle this regardless of whether we're in bramble, because the lights are visible from outside the planet
+			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
+
+			if (!isInSolarSystem || !isInBramble)
+				return;
 
 			if (_swapMusic)
 				musicManager?.SwapMusic(BrambleMusic.Deku);
 			else
 				musicManager?.SwapMusic(BrambleMusic.Spooky);
-
-			if (isInSolarSystem && isInBramble)
-			{
-				if (_disableFog)
-					DisableFog();
-				else
-					EnableFog();
-			}
+	
+			if (_disableFog)
+				DisableFog();
+			else
+				EnableFog();
 		}
 
-		private void ToggleFishes(bool disabled)
+		public void ToggleFishes(bool disabled)
 		{
 			DebugLog("Toggling fish");
 			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
