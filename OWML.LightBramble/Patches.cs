@@ -16,23 +16,26 @@ namespace LightBramble
 			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
+			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightStartPostfix));
 		}
 	}
 
 	public class AnglerPatches
 	{
-		static public void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
+		public static void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
 		{
 			__runOriginal = false;
+
+			LightBramble.inst.ToggleFogLights(!(LightBramble.inst._disableFish));
 			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
 								LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
 		}
 
-		static public void AwakePostfix(AnglerfishController __instance)
+		public static void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Add(__instance);
 		}
-		static public void OnDestroyPrefix(AnglerfishController __instance)
+		public static void OnDestroyPrefix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Remove(__instance);
 		}
@@ -40,19 +43,24 @@ namespace LightBramble
 
 	public class FogPatches
 	{
-		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
+		public static void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.collections.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
 		}
 
-		static public void PlanetaryFogPostfix(PlanetaryFogController __instance)
+		public static void PlanetaryFogPostfix(PlanetaryFogController __instance)
 		{
 			LightBramble.inst.collections.planetaryFogControllerDict.Add(__instance, __instance.fogTint);
 		}
 
-		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
+		public static void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
 			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
+		}
+
+		public static void FogLightStartPostfix(FogLight __instance)
+		{
+			LightBramble.inst.collections.fogLights.Add(__instance);
 		}
 	}
 
