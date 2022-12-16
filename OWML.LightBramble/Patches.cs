@@ -1,7 +1,5 @@
 ﻿using OWML.Utils;
 using UnityEngine;
-using Harmony;
-using OWML.ModHelper;
 
 namespace LightBramble
 {
@@ -18,8 +16,6 @@ namespace LightBramble
 			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
 			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
 			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
-			hmy.AddPostfix<FogLightManager>(nameof(FogLightManager.Awake), typeof(FogPatches), nameof(FogPatches.FogLightManagerAwakePostfix));
-			hmy.AddPostfix<FogLight>(nameof(FogLight.Awake), typeof(FogPatches), nameof(FogPatches.FogLightPrefix));
 		}
 	}
 
@@ -44,12 +40,6 @@ namespace LightBramble
 
 	public class FogPatches
 	{
-		static public void FogLightManagerAwakePostfix(FogLightManager __instance)
-		{
-			LightBramble.inst.fogLightCanvas = __instance.GetValue<Canvas>("_canvas");
-			LightBramble.inst.fogLightManager = __instance;
-		}
-
 		static public void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.collections.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
@@ -63,11 +53,6 @@ namespace LightBramble
 		static public void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
 			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
-		}
-
-		public static void FogLightPrefix(FogLight __instance)
-		{
-			LightBramble.inst.collections.fogLights.Add(__instance);
 		}
 	}
 

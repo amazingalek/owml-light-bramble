@@ -7,7 +7,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection;
 using System;
-using static OWML.ModHelper.Events.ModUnityEvents;
 
 namespace LightBramble
 {
@@ -22,7 +21,6 @@ namespace LightBramble
 		public class CollectionHolder
 		{
 			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
-			public List<FogLight> fogLights = new List<FogLight>();
 			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
@@ -39,7 +37,6 @@ namespace LightBramble
 		public bool _disableFog => currentConfig.disableFog;
 
 		private MethodInfo anglerChangeState;
-		private MethodInfo fogLightUpdate;
 
 		//QSB-compatibility
 		public Action<BrambleConfig> ConfigChanged;
@@ -80,8 +77,6 @@ namespace LightBramble
 			//get handle to ChangeState so that we can set Anglerfish to idle before disabling
 			Type anglerType = typeof(AnglerfishController);
 			anglerChangeState = anglerType.GetMethod(nameof(AnglerfishController.ChangeState), BindingFlags.NonPublic | BindingFlags.Instance);
-			Type fogLightType = typeof(FogLight);
-			fogLightUpdate = fogLightType.GetMethod(nameof(FogLight.UpdateFogLight), BindingFlags.NonPublic | BindingFlags.Instance);
 		}
 
 		public override void Configure(IModConfig config)
