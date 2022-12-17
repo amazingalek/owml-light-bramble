@@ -14,9 +14,9 @@ namespace LightBramble
 	{
 		public static LightBramble inst;
 
-		public MusicManager musicManager;
-		public Canvas fogLightCanvas;
-		public FogLightManager fogLightManager;
+		internal MusicManager musicManager;
+		internal Canvas fogLightCanvas;
+		internal FogLightManager fogLightManager;
 
 		public class CollectionHolder
 		{
@@ -27,7 +27,7 @@ namespace LightBramble
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
 		}
 		//used to easily dereference all collections instead of a bunch of OnDestroy patches to remove from them
-		public CollectionHolder collections = new CollectionHolder();
+		internal CollectionHolder collections = new CollectionHolder();
 
 		private bool isInSolarSystem = false;   //updated on scene load
 		private bool isInBramble = false;   //updated by a global event called by the game
@@ -83,9 +83,9 @@ namespace LightBramble
 		public override void Configure(IModConfig config)
 		{
 			SetConfig(new BrambleConfig {
-				swapMusic = config.GetSettingsValue<bool>("swapMusic"),
-				disableFish = config.GetSettingsValue<bool>("disableFish"),
-				disableFog = config.GetSettingsValue<bool>("disableFog")
+				swapMusic = config?.GetSettingsValue<bool>("swapMusic") ?? true,
+				disableFish = config?.GetSettingsValue<bool>("disableFish") ?? true,
+				disableFog = config?.GetSettingsValue<bool>("disableFog") ?? true
 			});
 		}
 
@@ -150,13 +150,13 @@ namespace LightBramble
 
 		internal void CheckToggleables()
 		{
+			if (!isInSolarSystem || !isInBramble)
+				return;
+
 			ToggleFogLights(!_disableFish);
 			
 			//delay disabling to give time for UpdateFogLight to trigger
 			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
-
-			if (!isInSolarSystem || !isInBramble)
-				return;
 
 			if (_swapMusic)
 				musicManager?.SwapMusic(BrambleMusic.Deku);

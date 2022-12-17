@@ -18,12 +18,10 @@ namespace LightBramble
 	[HarmonyPatch]
 	public static class AnglerPatches
 	{
-		[HarmonyPrefix]
+		[HarmonyPostfix]
 		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnSectorOccupantsUpdated))]
-		public static void OnSectorOccupantsUpdated(AnglerfishController __instance, ref bool __runOriginal)
+		public static void OnSectorOccupantsUpdated(AnglerfishController __instance)
 		{
-			__runOriginal = false;
-
 			LightBramble.inst.ToggleFogLights(!(LightBramble.inst._disableFish));
 			//delay disabling to give time for UpdateFogLight to trigger
 			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
