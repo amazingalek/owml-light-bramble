@@ -15,13 +15,10 @@ namespace LightBramble
 		public static LightBramble inst;
 
 		internal MusicManager musicManager;
-		internal Canvas fogLightCanvas;
-		internal FogLightManager fogLightManager;
 
 		public class CollectionHolder
 		{
 			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
-			public List<FogLight> fogLights = new List<FogLight>();
 			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
@@ -115,7 +112,7 @@ namespace LightBramble
 			if (_swapMusic)
 				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
-				musicManager.SwapMusic(BrambleMusic.Spooky, 1f, 0f);
+				musicManager.SwapMusic(BrambleMusic.Original, 1f, 0f);
 		}
 
 		private void PlayerExitBramble()
@@ -138,30 +135,17 @@ namespace LightBramble
 #endif
 		}
 
-		internal void ToggleFogLights(bool enabled)
-		{
-			foreach (FogLight fogLight in collections.fogLights)
-			{
-				var lightData = fogLight.GetValue<FogLight.LightData>("_primaryLightData");
-				lightData.maxAlpha = enabled ? 0.5f : 0;
-				lightData.color = enabled ? Color.white : Color.clear;
-			}
-		}
-
 		internal void CheckToggleables()
 		{
 			if (!isInSolarSystem || !isInBramble)
 				return;
-
-			ToggleFogLights(!_disableFish);
 			
-			//delay disabling to give time for UpdateFogLight to trigger
 			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
 
 			if (_swapMusic)
 				musicManager?.SwapMusic(BrambleMusic.Deku);
 			else
-				musicManager?.SwapMusic(BrambleMusic.Spooky);
+				musicManager?.SwapMusic(BrambleMusic.Original);
 	
 			if (_disableFog)
 				DisableFog();

@@ -26,7 +26,7 @@ namespace LightBramble
 		public void SwapMusic(BrambleMusic musicType, float fadeInDuration = 1f, float fadeOutDuration = 1f)
 		{
 			AudioClip clipToPlay;
-			if (musicType == BrambleMusic.Spooky)
+			if (musicType == BrambleMusic.Original)
 				clipToPlay = spookyClip;
 			else
 				clipToPlay = dekuClip;
@@ -48,7 +48,7 @@ namespace LightBramble
 
 	public enum BrambleMusic
 	{
-		Spooky,
+		Original,
 		Deku
 	}
 }

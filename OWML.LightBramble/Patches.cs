@@ -22,8 +22,6 @@ namespace LightBramble
 		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnSectorOccupantsUpdated))]
 		public static void OnSectorOccupantsUpdated(AnglerfishController __instance)
 		{
-			LightBramble.inst.ToggleFogLights(!(LightBramble.inst._disableFish));
-			//delay disabling to give time for UpdateFogLight to trigger
 			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
 								LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
 		}
@@ -65,13 +63,6 @@ namespace LightBramble
 		public static void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
 			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(FogLight), nameof(FogLight.Start))]
-		public static void FogLightStartPostfix(FogLight __instance)
-		{
-			LightBramble.inst.collections.fogLights.Add(__instance);
 		}
 	}
 
