@@ -1,79 +1,98 @@
 ﻿using OWML.Utils;
 using UnityEngine;
+using System.Reflection;
+using HarmonyLib;
 
 namespace LightBramble
 {
 	public static class Patches
 	{
-		public static void SetupPatches()
+		public static void ApplyPatches()
 		{
-			OWML.Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper;
-			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnSectorOccupantsUpdated), typeof(AnglerPatches), nameof(AnglerPatches.SectorUpdated));
-			hmy.AddPostfix<AnglerfishController>(nameof(AnglerfishController.Awake), typeof(AnglerPatches), nameof(AnglerPatches.AwakePostfix));
+			Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
+			OWML.Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper; //for some reason the patch below doesn't work with Harmony attributes
 			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatches), nameof(AnglerPatches.OnDestroyPrefix));
-			hmy.AddPostfix<FogOverrideVolume>(nameof(FogOverrideVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogOverrideVolumePostfix));
-			hmy.AddPostfix<FogWarpVolume>(nameof(FogWarpVolume.Awake), typeof(FogPatches), nameof(FogPatches.FogWarpVolumePostfix));
-			hmy.AddPostfix<PlanetaryFogController>(nameof(PlanetaryFogController.Awake), typeof(FogPatches), nameof(FogPatches.PlanetaryFogPostfix));
-			hmy.AddPostfix<GlobalMusicController>(nameof(GlobalMusicController.Start), typeof(GlobalMusicControllerPatch), nameof(GlobalMusicControllerPatch.GlobalMusicControllerStartPostfix));
-			hmy.AddPrefix<AnglerfishAudioController>(nameof(AnglerfishAudioController.UpdateLoopingAudio), typeof(AnglerfishAudioControllerPatch), nameof(AnglerfishAudioControllerPatch.UpdateLoopingAudioPatch));
-			hmy.AddPostfix<FogLight>(nameof(FogLight.Start), typeof(FogPatches), nameof(FogPatches.FogLightStartPostfix));
 		}
 	}
 
-	public class AnglerPatches
+	[HarmonyPatch]
+	public static class AnglerPatches
 	{
-		public static void SectorUpdated(AnglerfishController __instance, ref bool __runOriginal)
+		[HarmonyPrefix]
+		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnSectorOccupantsUpdated))]
+		public static void OnSectorOccupantsUpdated(AnglerfishController __instance, ref bool __runOriginal)
 		{
 			__runOriginal = false;
 
 			LightBramble.inst.ToggleFogLights(!(LightBramble.inst._disableFish));
+			//delay disabling to give time for UpdateFogLight to trigger
 			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
 								LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.Awake))]
 		public static void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Add(__instance);
 		}
+
+		//[HarmonyPrefix]
+		//[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnDestroy))]
 		public static void OnDestroyPrefix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Remove(__instance);
 		}
 	}
 
-	public class FogPatches
+	[HarmonyPatch]
+	public static class FogPatches
 	{
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(FogWarpVolume), nameof(FogWarpVolume.Awake))]
 		public static void FogWarpVolumePostfix(FogWarpVolume __instance)
 		{
 			LightBramble.inst.collections.fogWarpVolumeDict.Add(__instance, __instance.GetValue<Color>("_fogColor"));
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(PlanetaryFogController), nameof(PlanetaryFogController.Awake))]
 		public static void PlanetaryFogPostfix(PlanetaryFogController __instance)
 		{
 			LightBramble.inst.collections.planetaryFogControllerDict.Add(__instance, __instance.fogTint);
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(FogOverrideVolume), nameof(FogOverrideVolume.Awake))]
 		public static void FogOverrideVolumePostfix(FogOverrideVolume __instance)
 		{
 			LightBramble.inst.collections.fogOverrideVolumeDict.Add(__instance, __instance.tint);
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(FogLight), nameof(FogLight.Start))]
 		public static void FogLightStartPostfix(FogLight __instance)
 		{
 			LightBramble.inst.collections.fogLights.Add(__instance);
 		}
 	}
 
-	public class GlobalMusicControllerPatch
+	[HarmonyPatch]
+	public static class GlobalMusicControllerPatch
 	{
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(GlobalMusicController), nameof(GlobalMusicController.Start))]
 		static public void GlobalMusicControllerStartPostfix(GlobalMusicController __instance)
 		{
 			LightBramble.inst.musicManager = new MusicManager(__instance);
 		}
 	}
 
-	public class AnglerfishAudioControllerPatch
+	[HarmonyPatch]
+	public static class AnglerfishAudioControllerPatch
 	{
+		[HarmonyPrefix]
+		[HarmonyPatch(typeof(AnglerfishAudioController), nameof(AnglerfishAudioController.UpdateLoopingAudio))]
 		public static void UpdateLoopingAudioPatch(AnglerfishAudioController __instance, ref bool __runOriginal, AnglerfishController.AnglerState anglerState)
 		{
 			__runOriginal = false;
