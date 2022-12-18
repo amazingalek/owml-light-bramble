@@ -4,7 +4,7 @@
 	"author": "Alek & sandsalamand",
 	"name": "LightBramble",
 	"uniqueName": "Alek.LightBramble",
-	"version": "1.0",
+	"version": "1.0.1",
 	"owmlVersion": "2.8.0",
 	"dependencies": [ "_nebula.MenuFramework" ]
 }
