@@ -32,11 +32,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="OWML" Version="2.5.2" />
-    <PackageReference Include="OuterWildsGameLibs" Version="1.1.12.168" />
-    <Reference Include="0Harmony, Version=1.2.0.1, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Lib.Harmony.1.2.0.1\lib\net35\0Harmony.dll</HintPath>
-    </Reference>
+    <PackageReference Include="OuterWildsGameLibs" Version="1.1.13.393" />
+    <PackageReference Include="OWML">
+      <Version>2.8.0</Version>
+    </PackageReference>
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\OuterWildsGameLibs.1.1.12.125\lib\Assembly-CSharp.dll</HintPath>
       <Private>True</Private>

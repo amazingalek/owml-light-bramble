@@ -1,6 +1,4 @@
-﻿#define DEBUG
-
-using OWML.Common;
+﻿using OWML.Common;
 using OWML.ModHelper;
 using OWML.Utils;
 using UnityEngine;
@@ -14,33 +12,30 @@ namespace LightBramble
 	{
 		public static LightBramble inst;
 
-		public MusicManager musicManager;
-		public Canvas fogLightCanvas;
-		public FogLightManager fogLightManager;
+		internal MusicManager musicManager;
 
 		public class CollectionHolder
 		{
 			public List<AnglerfishController> anglerfishList = new List<AnglerfishController>();
-			public List<FogLight> fogLights = new List<FogLight>();
 			public Dictionary<FogWarpVolume, Color> fogWarpVolumeDict = new Dictionary<FogWarpVolume, Color>();
 			public Dictionary<PlanetaryFogController, Color> planetaryFogControllerDict = new Dictionary<PlanetaryFogController, Color>();
 			public Dictionary<FogOverrideVolume, Color> fogOverrideVolumeDict = new Dictionary<FogOverrideVolume, Color>();
 		}
 		//used to easily dereference all collections instead of a bunch of OnDestroy patches to remove from them
-		public CollectionHolder collections = new CollectionHolder();
+		internal CollectionHolder collections = new CollectionHolder();
 
 		private bool isInSolarSystem = false;   //updated on scene load
 		private bool isInBramble = false;   //updated by a global event called by the game
 
 		//Config toggles, modified by Configure when the user exits the OWML mod toggle page
-		public bool _swapMusic => currentConfig.swapMusic;
-		public bool _disableFish => currentConfig.disableFish;
-		public bool _disableFog => currentConfig.disableFog;
+		public bool _swapMusic => CurrentConfig.swapMusic;
+		public bool _disableFish => CurrentConfig.disableFish;
+		public bool _disableFog => CurrentConfig.disableFog;
 
 		private MethodInfo anglerChangeState;
 
 		//QSB-compatibility
-		public Action<BrambleConfig> ConfigChanged;
+		public event Action<BrambleConfig> ConfigChanged;
 
 		public struct BrambleConfig
 		{
@@ -55,7 +50,7 @@ namespace LightBramble
 				disableFog = __disableFog;
 			}
 		}
-		public BrambleConfig currentConfig = new BrambleConfig();
+		public BrambleConfig CurrentConfig { get; private set; } = new BrambleConfig();
 
 		private void Awake()
 		{
@@ -67,11 +62,12 @@ namespace LightBramble
 
 		private void Start()
 		{
-			Patches.SetupPatches();
+			Patches.ApplyPatches();
 
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 			GlobalMessenger.AddListener("WakeUp", OnWakeUp);
+			GlobalMessenger<DeathType>.AddListener("PlayerDeath", (deathType) => PlayerExitBramble());
 			LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
 			LoadManager.OnStartSceneLoad += OnStartSceneLoad;
 
@@ -82,12 +78,18 @@ namespace LightBramble
 
 		public override void Configure(IModConfig config)
 		{
-			DebugLog("Configure called");
-			currentConfig.swapMusic = config.GetSettingsValue<bool>("swapMusic");
-			currentConfig.disableFish = config.GetSettingsValue<bool>("disableFish");
-			currentConfig.disableFog = config.GetSettingsValue<bool>("disableFog");
-			ConfigChanged?.Invoke(currentConfig);
+			SetConfig(new BrambleConfig {
+				swapMusic = config?.GetSettingsValue<bool>("swapMusic") ?? true,
+				disableFish = config?.GetSettingsValue<bool>("disableFish") ?? true,
+				disableFog = config?.GetSettingsValue<bool>("disableFog") ?? true
+			});
+		}
+
+		public void SetConfig(BrambleConfig newConfig)
+		{
+			CurrentConfig = newConfig;
 			CheckToggleables();
+			ConfigChanged?.Invoke(CurrentConfig);
 		}
 
 		//clear collections and let the gc get the old lists/dicts
@@ -102,6 +104,7 @@ namespace LightBramble
 
 		private void PlayerEnterBramble()
 		{
+			DebugLog("Player Entered Bramble");
 			isInBramble = true;
 
 			if (_disableFog)
@@ -109,11 +112,12 @@ namespace LightBramble
 			if (_swapMusic)
 				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
-				musicManager.SwapMusic(BrambleMusic.Spooky, 1f, 0f);
+				musicManager.SwapMusic(BrambleMusic.Original, 1f, 0f);
 		}
 
 		private void PlayerExitBramble()
 		{
+			DebugLog("Player Exited Bramble");
 			isInBramble = false;
 			EnableFog();
 		}
@@ -132,30 +136,17 @@ namespace LightBramble
 #endif
 		}
 
-		internal void ToggleFogLights(bool enabled)
-		{
-			foreach (FogLight fogLight in collections.fogLights)
-			{
-				var lightData = fogLight.GetValue<FogLight.LightData>("_primaryLightData");
-				lightData.maxAlpha = enabled ? 0.5f : 0;
-				lightData.color = enabled ? Color.white : Color.clear;
-			}
-		}
-
 		internal void CheckToggleables()
 		{
-			ToggleFogLights(!_disableFish);
-			
-			//delay it to give time for UpdateFogLight to trigger
-			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
-
 			if (!isInSolarSystem || !isInBramble)
 				return;
+			
+			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
 
 			if (_swapMusic)
 				musicManager?.SwapMusic(BrambleMusic.Deku);
 			else
-				musicManager?.SwapMusic(BrambleMusic.Spooky);
+				musicManager?.SwapMusic(BrambleMusic.Original);
 	
 			if (_disableFog)
 				DisableFog();
@@ -163,48 +154,44 @@ namespace LightBramble
 				EnableFog();
 		}
 
-		public void ToggleFishes(bool disabled)
+		internal void ToggleFishes(bool shouldDisable)
 		{
 			DebugLog("Toggling fish");
 			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
 			{
-				ToggleFish(anglerfishController, disabled);
+				ToggleFish(anglerfishController, shouldDisable);
 			}
 		}
 
-		public void ToggleFish(AnglerfishController anglerfishController, bool disabled)
+		internal void ToggleFish(AnglerfishController anglerfishController, bool shouldDisable)
 		{
 			if (!isInSolarSystem || anglerfishController == null || !(anglerfishController.GetSector().ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship)))
 				return;
 
-			if (disabled && anglerfishController.gameObject.activeSelf)
-			{
-				//set anglerfish state to lurking so that the angler is not still following player when re-enabled
-				anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
-
+			if (shouldDisable && anglerfishController.gameObject.activeSelf)
 				DisableAnglerfish(anglerfishController);
-			}
-			else if (!disabled && !anglerfishController.gameObject.activeSelf)
-			{
+			else if (!shouldDisable && !anglerfishController.gameObject.activeSelf)
 				EnableAnglerfish(anglerfishController);
-			}
 		}
 
-		public void EnableAnglerfish(AnglerfishController anglerfishController)
+		internal void EnableAnglerfish(AnglerfishController anglerfishController)
 		{
 			anglerfishController.gameObject.SetActive(true);
 			anglerfishController.GetAttachedOWRigidbody()?.Unsuspend();
 			anglerfishController.RaiseEvent("OnAnglerUnsuspended", anglerfishController.GetAnglerState());
 		}
 
-		public void DisableAnglerfish(AnglerfishController anglerfishController)
+		internal void DisableAnglerfish(AnglerfishController anglerfishController)
 		{
+			//set anglerfish state to lurking so that the angler is not still following player when re-enabled
+			anglerChangeState?.Invoke(anglerfishController, new object[] { AnglerfishController.AnglerState.Lurking });
+
 			anglerfishController.GetAttachedOWRigidbody()?.Suspend();
 			anglerfishController.gameObject.SetActive(false);
 			anglerfishController.RaiseEvent("OnAnglerSuspended", anglerfishController.GetAnglerState());
 		}
 
-		private void EnableFog()
+		internal void EnableFog()
 		{
 			DebugLog("Enabling Fog");
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
@@ -221,7 +208,7 @@ namespace LightBramble
 			}
 		}
 
-		private void DisableFog()
+		internal void DisableFog()
 		{
 			DebugLog("Disabling Fog");
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
@@ -241,14 +228,14 @@ namespace LightBramble
 			}
 		}
 
-		public void DebugLog(string str)
+		internal void DebugLog(string str)
 		{
 #if DEBUG
 			ModHelper.Console.WriteLine(str);
 #endif
 		}
 
-		public void DebugLog(string str, MessageType messageType)
+		internal void DebugLog(string str, MessageType messageType)
 		{
 #if DEBUG
 			ModHelper.Console.WriteLine(str, messageType);
