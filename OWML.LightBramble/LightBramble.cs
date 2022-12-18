@@ -1,6 +1,4 @@
-﻿#define DEBUG
-
-using OWML.Common;
+﻿using OWML.Common;
 using OWML.ModHelper;
 using OWML.Utils;
 using UnityEngine;
@@ -69,6 +67,7 @@ namespace LightBramble
 			GlobalMessenger.AddListener("PlayerEnterBrambleDimension", PlayerEnterBramble);
 			GlobalMessenger.AddListener("PlayerExitBrambleDimension", PlayerExitBramble);
 			GlobalMessenger.AddListener("WakeUp", OnWakeUp);
+			GlobalMessenger<DeathType>.AddListener("PlayerDeath", (deathType) => PlayerExitBramble());
 			LoadManager.OnCompleteSceneLoad += OnCompleteSceneLoad;
 			LoadManager.OnStartSceneLoad += OnStartSceneLoad;
 
@@ -105,6 +104,7 @@ namespace LightBramble
 
 		private void PlayerEnterBramble()
 		{
+			DebugLog("Player Entered Bramble");
 			isInBramble = true;
 
 			if (_disableFog)
@@ -117,6 +117,7 @@ namespace LightBramble
 
 		private void PlayerExitBramble()
 		{
+			DebugLog("Player Exited Bramble");
 			isInBramble = false;
 			EnableFog();
 		}

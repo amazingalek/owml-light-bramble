@@ -7,12 +7,7 @@ namespace LightBramble
 {
 	public static class Patches
 	{
-		public static void ApplyPatches()
-		{
-			Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
-			OWML.Common.IHarmonyHelper hmy = LightBramble.inst.ModHelper.HarmonyHelper; //for some reason the patch below doesn't work with Harmony attributes
-			hmy.AddPrefix<AnglerfishController>(nameof(AnglerfishController.OnDestroy), typeof(AnglerPatches), nameof(AnglerPatches.OnDestroyPrefix));
-		}
+		public static void ApplyPatches() => Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
 	}
 
 	[HarmonyPatch]
@@ -23,7 +18,7 @@ namespace LightBramble
 		public static void OnSectorOccupantsUpdated(AnglerfishController __instance)
 		{
 			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
-								LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
+				LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
 		}
 
 		[HarmonyPostfix]
@@ -31,13 +26,6 @@ namespace LightBramble
 		public static void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Add(__instance);
-		}
-
-		//[HarmonyPrefix]
-		//[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnDestroy))]
-		public static void OnDestroyPrefix(AnglerfishController __instance)
-		{
-			LightBramble.inst.collections.anglerfishList.Remove(__instance);
 		}
 	}
 
@@ -88,7 +76,7 @@ namespace LightBramble
 			LightBramble.inst.DebugLog(anglerState.ToString());
 
 			OWAudioSource _loopSource = __instance.GetValue<OWAudioSource>("_loopSource");
-			//LightBramble.inst.DebugLog("audioManager is " + (audioManager?.ToString() ?? "null"));
+			//this patch is exactly the same as the original code, plus a null check
 			if (Locator.GetAudioManager() is AudioManager audioManager && audioManager != null)
 			{
 				switch (anglerState)
