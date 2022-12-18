@@ -1,9 +1,10 @@
 {
-  "filename": "OWML.LightBramble.dll",
-  "author": "Alek",
-  "name": "LightBramble",
-  "uniqueName": "Alek.LightBramble",
-  "version": "0.7",
-  "owmlVersion": "2.0.0",
-  "description": "No fog. No anglerfish. Nice music."
+	"$schema": "https://raw.githubusercontent.com/ow-mods/owml/master/schemas/manifest_schema.json",
+	"filename": "LightBramble.dll",
+	"author": "Alek & sandsalamand",
+	"name": "LightBramble",
+	"uniqueName": "Alek.LightBramble",
+	"version": "1.0",
+	"owmlVersion": "2.8.0",
+	"dependencies": [ "_nebula.MenuFramework" ]
 }
